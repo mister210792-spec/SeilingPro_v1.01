@@ -660,7 +660,9 @@ function updateStats() {
             }
         }
     });
-    document.getElementById("elementList").innerHTML = listHTML;
+    const elList = document.getElementById("elementList");
+if (elList) {
+    elList.innerHTML = listHTML;
 }
 
 
@@ -1074,4 +1076,5 @@ async function deleteCloudProject(id) {
 function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
+
 
