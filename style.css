@@ -254,5 +254,11 @@
     color: white;
     border: 2px solid #2c3e50;
 }
+#canvas {
+    touch-action: none; /* Критически важно: отключает нативный скролл и зум на SVG */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
 
 
