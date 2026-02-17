@@ -996,7 +996,7 @@ function openProjectsModal() {
                 </div>
                 <div class="project-actions">
                     <button class="btn-load" onclick="loadProject(${project.id})">Открыть</button>
-                    <button class="btn-delete" onclick="deleteProject(${project.id})">🗑️</button>
+                    <button class="btn-delete" onclick="deleteProject(${project.id})">❌</button>
                 </div>
             `;
             container.appendChild(item);
@@ -1047,4 +1047,5 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
