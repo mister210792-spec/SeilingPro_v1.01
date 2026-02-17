@@ -1,4 +1,4 @@
-// --- CLOUD CONFIGURATION ---
+// --- CLOUD CONFIGURATION (Firebase) ---
 const firebaseConfig = {
   apiKey: "AIzaSyBe4dfQAk6aiMHlZv2p3KqMw8dXrrS6pNM",
   authDomain: "seiling-plan-pro.firebaseapp.com",
@@ -9,40 +9,22 @@ const firebaseConfig = {
   measurementId: "G-6TXYE369QD"
 };
 
-// Инициализируем Firebase
-firebase.initializeApp(firebaseConfig);
+// Инициализация Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const auth = firebase.auth();
 const db = firebase.firestore();
-// Этот код проверяет, вошел ли пользователь, каждый раз при обновлении страницы
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        // Если пользователь авторизован в Google Firebase
-        db.collection("users").doc(user.uid).get().then((doc) => {
-            // Собираем данные профиля из базы данных
-            currentUser = { 
-                id: user.uid, 
-                email: user.email,
-                ...doc.data() 
-            };
-            console.log("Пользователь вошел:", currentUser.email);
-            completeAuth(); // Вызываем вашу функцию, чтобы убрать окно входа
-        });
-    } else {
-        // Если пользователь не вошел, обнуляем переменную
-        currentUser = null;
-        console.log("Пользователь не авторизован");
-        // Здесь можно принудительно показать окно входа, если оно скрыто
-        document.getElementById('auth-overlay').style.display = 'flex';
-    }
-});
-// --- SAAS LOGIC (FIREBASE VERSION) ---
+
 let currentUser = null;
 let selectedRegPlan = 'free';
 
-// Проверка авторизации в реальном времени
+// --- AUTH LOGIC ---
+
+// Проверка состояния входа в реальном времени
 auth.onAuthStateChanged((user) => {
     if (user) {
-        // Принудительная проверка: не удален ли пользователь в консоли
+        // Принудительно проверяем токен (если юзер удален в консоли - его выкинет)
         user.getIdToken(true).then(() => {
             db.collection("users").doc(user.uid).get().then((doc) => {
                 if (doc.exists) {
@@ -52,63 +34,72 @@ auth.onAuthStateChanged((user) => {
                     handleLogout();
                 }
             });
-        }).catch(() => {
-            handleLogout(); // Если юзер удален в Firebase, его выкинет
-        });
+        }).catch(() => handleLogout());
     } else {
         document.getElementById('auth-overlay').style.display = 'flex';
     }
 });
 
-function handleLogin() {
-    const email = document.getElementById('email').value;
-    const pass = document.getElementById('pass').value;
-
-    auth.signInWithEmailAndPassword(email, pass)
-        .catch((error) => alert("Ошибка входа: " + error.message));
+function toggleAuthForms() {
+    const isLogin = document.getElementById('login-form').style.display !== 'none';
+    document.getElementById('login-form').style.display = isLogin ? 'none' : 'block';
+    document.getElementById('reg-form').style.display = isLogin ? 'block' : 'none';
 }
 
-// --- ОБЛАЧНАЯ РЕГИСТРАЦИЯ (FIREBASE) ---
+function selectPlan(plan) {
+    selectedRegPlan = plan;
+    document.getElementById('p-free').classList.toggle('active', plan === 'free');
+    document.getElementById('p-pro').classList.toggle('active', plan === 'pro');
+}
+
+function handleLogin() {
+    const email = document.getElementById('email').value.trim().toLowerCase(); // Исправлен регистр
+    const pass = document.getElementById('pass').value;
+
+    if(!email || !pass) { alert("Введите почту и пароль"); return; }
+    
+    auth.signInWithEmailAndPassword(email, pass)
+        .catch(err => alert("Ошибка входа: " + err.message));
+}
+
 async function handleRegister() {
-    const name = document.getElementById('reg-name').value;
-    const email = document.getElementById('reg-email').value;
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim().toLowerCase(); // Исправлен регистр
     const pass = document.getElementById('reg-pass').value;
 
-    if (!name || !email || !pass) { 
-        alert("Пожалуйста, заполните все поля"); 
-        return; 
-    }
+    if(!name || !email || !pass) { alert("Заполните все поля"); return; }
 
     try {
-        // 1. Создаем пользователя в системе аутентификации Google
-        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
-        const user = userCredential.user;
-
-        // 2. Записываем дополнительные данные (имя, план) в базу Firestore
-        await db.collection("users").doc(user.uid).set({
+        const cred = await auth.createUserWithEmailAndPassword(email, pass);
+        await db.collection("users").doc(cred.user.uid).set({
             name: name,
             email: email,
-            plan: selectedRegPlan, // Ваша переменная тарифа
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            plan: selectedRegPlan
         });
+        alert("Регистрация успешна!");
+    } catch (err) {
+        alert("Ошибка регистрации: " + err.message);
+    }
+}
 
-        alert("Аккаунт успешно создан!");
-        // Окно закроется автоматически через auth.onAuthStateChanged
-        
-    } catch (error) {
-        console.error("Ошибка регистрации:", error);
-        // Обработка типичных ошибок Firebase
-        if (error.code === 'auth/email-already-in-use') {
-            alert("Этот email уже занят другим пользователем.");
-        } else if (error.code === 'auth/weak-password') {
-            alert("Пароль должен быть не менее 6 символов.");
-        } else {
-            alert("Ошибка: " + error.message);
-        }
+function completeAuth() {
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('header-user').innerText = currentUser.name || currentUser.email;
+    document.getElementById('header-plan').innerText = "План: " + (currentUser.plan || 'FREE').toUpperCase();
+    
+    if(currentUser.plan === 'pro') {
+        document.getElementById('header-plan').style.background = 'var(--gold)';
+        document.getElementById('header-plan').style.color = 'var(--dark)';
+    }
+
+    loadAllSettings();
+    initSelectors();
+    initTouchHandlers(); // Для мобилок
 }
 
 function handleLogout() {
     auth.signOut().then(() => {
+        localStorage.removeItem('saas_last_user');
         location.reload();
     });
 }
@@ -666,77 +657,7 @@ function updateStats() {
     document.getElementById("elementList").innerHTML = listHTML;
 }
 
-// Функции сохранения в облако (добавьте их в самый конец, если их еще нет)
-async function saveProjectCloud() {
-    if (!currentUser) return alert("Войдите в систему");
-    const name = prompt("Название проекта:", "Мой проект");
-    if (!name) return;
 
-    try {
-        await db.collection("projects").add({
-            userId: currentUser.id,
-            name: name,
-            rooms: rooms,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        alert("Проект сохранен в облако!");
-    } catch (e) {
-        alert("Ошибка сохранения: " + e.message);
-    }
-}
-
-async function openProjectsModal() {
-    if (!currentUser) return alert("Войдите в систему");
-    const container = document.getElementById('projectsListContainer');
-    container.innerHTML = "Загрузка...";
-    document.getElementById('projectsModal').style.display = 'flex';
-
-    try {
-        const snapshot = await db.collection("projects")
-            .where("userId", "==", currentUser.id)
-            .get();
-        
-        let html = "";
-        snapshot.forEach(doc => {
-            const p = doc.data();
-            html += `
-                <div class="project-item">
-                    <div class="project-info">
-                        <span class="project-name">${p.name}</span>
-                    </div>
-                    <div class="project-actions">
-                        <button class="btn-load" onclick="loadCloudProject('${doc.id}')">Открыть</button>
-                        <button class="btn-del" onclick="deleteCloudProject('${doc.id}')">×</button>
-                    </div>
-                </div>`;
-        });
-        container.innerHTML = html || "Проектов пока нет";
-    } catch (e) {
-        container.innerHTML = "Ошибка: " + e.message;
-    }
-}
-
-async function loadCloudProject(id) {
-    try {
-        const doc = await db.collection("projects").doc(id).get();
-        if (doc.exists) {
-            rooms = doc.data().rooms;
-            activeRoom = 0;
-            renderTabs();
-            draw();
-            document.getElementById('projectsModal').style.display = 'none';
-        }
-    } catch (e) {
-        alert("Ошибка загрузки");
-    }
-}
-
-async function deleteCloudProject(id) {
-    if (confirm("Удалить проект?")) {
-        await db.collection("projects").doc(id).delete();
-        openProjectsModal();
-    }
-}
 function resizeWall(i) {
     let r = rooms[activeRoom]; let p1 = r.points[i], p2 = r.points[(i + 1) % r.points.length];
     let curLen = Math.round(Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2)/10);
@@ -1071,115 +992,79 @@ async function saveProject() {
     }
 }
 
-// --- ОБЛАЧНОЕ УПРАВЛЕНИЕ ПРОЕКТАМИ (FIREBASE) ---
+// --- CLOUD PROJECTS ( Firestore ) ---
 
-// 1. Открытие модального окна и загрузка списка из облака
-async function openProjectsModal() {
-    if (!auth.currentUser) {
-        alert("Войдите в систему для доступа к облачным проектам");
-        return;
+async function saveProjectCloud() {
+    if (!currentUser) return alert("Войдите в систему");
+    const name = prompt("Название проекта:", "Мой проект " + new Date().toLocaleDateString());
+    if (!name) return;
+
+    try {
+        await db.collection("projects").add({
+            userId: currentUser.id,
+            name: name,
+            rooms: rooms, // Твой массив с чертежами
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Проект сохранен в облако!");
+    } catch (e) {
+        alert("Ошибка: " + e.message);
     }
+}
 
+async function openProjectsModal() {
+    if (!currentUser) return;
     const container = document.getElementById('projectsListContainer');
-    
-    // Красивый индикатор загрузки
-    container.innerHTML = `
-        <div style="text-align: center; padding: 20px;">
-            <div style="color: var(--primary); font-size: 14px;">Синхронизация с облаком...</div>
-        </div>`;
-    
+    container.innerHTML = "Загрузка...";
     document.getElementById('projectsModal').style.display = 'flex';
 
     try {
-        // Запрос к Firestore: только проекты текущего пользователя, сортировка по дате
         const snapshot = await db.collection("projects")
-            .where("userId", "==", auth.currentUser.uid)
-            .orderBy("createdAt", "desc")
+            .where("userId", "==", currentUser.id)
             .get();
-
-        container.innerHTML = ""; 
-
-        if (snapshot.empty) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 30px; color: #94a3b8;">
-                    <p>У вас пока нет сохраненных проектов в облаке.</p>
-                </div>`;
-            return;
-        }
-
+        
+        let html = "";
         snapshot.forEach(doc => {
-            const project = doc.data();
-            const projectId = doc.id; // Уникальный ID документа в Google
-            const dateStr = project.createdAt ? project.createdAt.toDate().toLocaleString('ru-RU') : 'Недавно';
-            
-            const item = document.createElement('div');
-            item.className = 'project-item';
-            item.innerHTML = `
-                <div class="project-info">
-                    <span class="project-name">${project.name}</span>
-                    <span class="project-meta">${dateStr}</span>
-                </div>
-                <div class="project-actions">
-                    <button class="btn-load" onclick="loadCloudProject('${projectId}')">Открыть</button>
-                    <button class="btn-delete" onclick="deleteCloudProject('${projectId}')">🗑️</button>
-                </div>
-            `;
-            container.appendChild(item);
+            const p = doc.data();
+            html += `
+                <div class="project-item">
+                    <div class="project-info">
+                        <span class="project-name">${p.name}</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn-load" onclick="loadCloudProject('${doc.id}')">Открыть</button>
+                        <button class="btn-del" onclick="deleteCloudProject('${doc.id}')">×</button>
+                    </div>
+                </div>`;
         });
-
-    } catch (error) {
-        console.error("Ошибка Firestore:", error);
-        container.innerHTML = `<p style="color: var(--danger); text-align:center;">Ошибка: ${error.message}</p>`;
+        container.innerHTML = html || "Проектов пока нет";
+    } catch (e) {
+        container.innerHTML = "Ошибка: " + e.message;
     }
 }
 
-// 2. Загрузка проекта из облака в приложение
-async function loadCloudProject(projectId) {
+async function loadCloudProject(id) {
     try {
-        const doc = await db.collection("projects").doc(projectId).get();
+        const doc = await db.collection("projects").doc(id).get();
         if (doc.exists) {
-            const project = doc.data();
-            if (confirm(`Загрузить проект "${project.name}"? Текущие изменения на холсте будут заменены.`)) {
-                
-                // Глубокое копирование данных из облака в текущий массив комнат
-                rooms = JSON.parse(JSON.stringify(project.rooms));
-                activeRoom = 0;
-                
-                // Обновление интерфейса (ваши стандартные функции)
-                if (typeof renderTabs === 'function') renderTabs();
-                if (typeof draw === 'function') draw();
-                
-                closeProjectsModal();
-            }
+            rooms = JSON.parse(JSON.stringify(doc.data().rooms));
+            activeRoom = 0;
+            renderTabs();
+            draw();
+            closeProjectsModal();
         }
-    } catch (error) {
-        alert("Ошибка при загрузке: " + error.message);
+    } catch (e) {
+        alert("Ошибка загрузки");
     }
 }
 
-// 3. Удаление проекта из облака
-async function deleteCloudProject(projectId) {
-    if (confirm("Вы уверены, что хотите навсегда удалить этот проект из облака?")) {
-        try {
-            await db.collection("projects").doc(projectId).delete();
-            openProjectsModal(); // Перезагружаем список
-        } catch (error) {
-            alert("Ошибка удаления: " + error.message);
-        }
+async function deleteCloudProject(id) {
+    if (confirm("Удалить проект?")) {
+        await db.collection("projects").doc(id).delete();
+        openProjectsModal();
     }
 }
 
-// 4. Закрытие окна
 function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
-
-// 5. Закрытие по клику на фон
-window.onclick = function(event) {
-    const modal = document.getElementById('projectsModal');
-    if (event.target == modal) {
-        closeProjectsModal();
-    }
-}
-
-
