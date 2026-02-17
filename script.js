@@ -139,8 +139,17 @@ function completeAuth() {
 
 function handleLogout() {
     if(confirm("Выйти из системы?")) {
-        localStorage.removeItem('saas_last_user');
-        location.reload();
+        // 1. Сообщаем Firebase, что нужно завершить сессию
+        auth.signOut().then(() => {
+            // 2. Очищаем локальные данные, если они есть
+            localStorage.removeItem('saas_last_user');
+            // 3. Перезагружаем страницу — теперь авто-вход не сработает
+            location.reload();
+        }).catch((error) => {
+            console.error("Ошибка при выходе:", error);
+            // Если Firebase не ответил, всё равно пробуем обновиться
+            location.reload();
+        });
     }
 }
 
@@ -1162,6 +1171,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
