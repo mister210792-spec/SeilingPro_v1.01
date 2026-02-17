@@ -1,3 +1,23 @@
+const tabs = document.getElementById("tabs");
+const GRID_SNAP_MM = 10; 
+const LIGHT_SNAP_MM = 50; 
+const MM_TO_PX = 3.78;
+
+let scale = 0.18;
+let offsetX = 100;
+let offsetY = 100;
+let rooms = [];
+let activeRoom = 0;
+let dragId = null;
+let dragElem = null;
+let isPanning = false;
+let startPanX, startPanY;
+let mousePos = { x: 0, y: 0, shift: false };
+let isHoveringFirstPoint = false;
+let currentTool = 'draw';
+let showDiagonals = true;
+let showMeasures = true;
+let history = [];
 // --- CLOUD CONFIGURATION (Firebase) ---
 const firebaseConfig = {
   apiKey: "AIzaSyBe4dfQAk6aiMHlZv2p3KqMw8dXrrS6pNM",
@@ -83,18 +103,23 @@ async function handleRegister() {
 }
 
 function completeAuth() {
+    // 1. Прячем окно входа
     document.getElementById('auth-overlay').style.display = 'none';
-    document.getElementById('header-user').innerText = currentUser.name || currentUser.email;
-    document.getElementById('header-plan').innerText = "План: " + (currentUser.plan || 'FREE').toUpperCase();
     
-    if(currentUser.plan === 'pro') {
-        document.getElementById('header-plan').style.background = 'var(--gold)';
-        document.getElementById('header-plan').style.color = 'var(--dark)';
+    // 2. Пишем имя в хедер
+    document.getElementById('header-user').innerText = currentUser.name || currentUser.email;
+    
+    // 3. ЗАПУСКАЕМ ТВОЙ ДВИЖОК
+    loadAllSettings(); // Твоя функция на 800+ строке
+    initSelectors();   // Твоя функция
+    
+    // Если мы только что зарегистрировались и комнат нет - создаем одну
+    if (rooms.length === 0) {
+        addRoom(); 
+    } else {
+        renderTabs();
+        draw();
     }
-
-    loadAllSettings();
-    initSelectors();
-    initTouchHandlers(); // Для мобилок
 }
 
 function handleLogout() {
@@ -290,26 +315,7 @@ function addNewElementConfirm() {
     saveAllSettings(); initSelectors(); toggleAddForm(); renderPriceList();
 }
 
-const tabs = document.getElementById("tabs");
-const GRID_SNAP_MM = 10; 
-const LIGHT_SNAP_MM = 50; 
-const MM_TO_PX = 3.78;
 
-let scale = 0.18;
-let offsetX = 100;
-let offsetY = 100;
-let rooms = [];
-let activeRoom = 0;
-let dragId = null;
-let dragElem = null;
-let isPanning = false;
-let startPanX, startPanY;
-let mousePos = { x: 0, y: 0, shift: false };
-let isHoveringFirstPoint = false;
-let currentTool = 'draw';
-let showDiagonals = true;
-let showMeasures = true;
-let history = [];
 // --- Переменные для мобильного управления ---
 let touchState = {
     isPinching: false,
@@ -1068,3 +1074,4 @@ async function deleteCloudProject(id) {
 function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
+
