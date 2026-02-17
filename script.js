@@ -1,11 +1,11 @@
 const firebaseConfig = {
-    apiKey : "AIzaSyBe4dfQAk6aiMHlZv2p3KqMw8dXrrS6pNM" , 
-  authDomain : "seiling-plan-pro.firebaseapp.com" , 
-  projectId : "сейлинг-план-про" , 
-  storageBucket : "seiling-plan-pro.firebasestorage.app" , 
-  messagingSenderId : "536435562249" , 
-  appId : "1:536435562249:web:063858060492dc6f47a5d8" , 
-  measurementId : "G-6TXYE369QD" 
+  apiKey: "AIzaSyBe4dfQAk6aiMHlZv2p3KqMw8dXrrS6pNM",
+  authDomain: "seiling-plan-pro.firebaseapp.com",
+  projectId: "seiling-plan-pro",
+  storageBucket: "seiling-plan-pro.firebasestorage.app",
+  messagingSenderId: "536435562249",
+  appId: "1:536435562249:web:063858060492dc6f47a5d8",
+  measurementId: "G-6TXYE369QD"
 };
 
 // Инициализация
@@ -1120,6 +1120,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
