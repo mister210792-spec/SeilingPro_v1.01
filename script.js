@@ -1092,6 +1092,80 @@ function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
 };
+// --- ДОБАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ИСПРАВЛЕНИЯ ОШИБОК ---
+
+// 1. Создание новой комнаты
+function addRoom() {
+    const newRoom = {
+        name: "Помещение " + (rooms.length + 1),
+        points: [],
+        elements: [],
+        closed: false
+    };
+    rooms.push(newRoom);
+    activeRoom = rooms.length - 1;
+    renderTabs();
+    draw();
+}
+
+// 2. Отрисовка вкладок переключения комнат
+function renderTabs() {
+    const tabsContainer = document.getElementById("tabs");
+    if (!tabsContainer) return;
+    tabsContainer.innerHTML = "";
+    rooms.forEach((room, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "tab-btn" + (idx === activeRoom ? " active" : "");
+        btn.innerText = room.name;
+        btn.onclick = () => {
+            activeRoom = idx;
+            renderTabs();
+            draw();
+        };
+        tabsContainer.appendChild(btn);
+    });
+    const addBtn = document.createElement("button");
+    addBtn.className = "tab-btn add-tab";
+    addBtn.innerText = "+";
+    addBtn.onclick = addRoom;
+    tabsContainer.appendChild(addBtn);
+}
+
+// 3. Изменение длины стены через ввод значения
+function resizeWall(index) {
+    let r = rooms[activeRoom];
+    let p1 = r.points[index];
+    let p2 = r.points[(index + 1) % r.points.length];
+    let currentLen = Math.round(Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2) / 10);
+    
+    let newLen = prompt("Введите новую длину стены (см):", currentLen);
+    if (newLen && !isNaN(newLen)) {
+        saveState();
+        let factor = (newLen * 10) / (currentLen * 10);
+        let dx = (p2.x - p1.x) * factor;
+        let dy = (p2.y - p1.y) * factor;
+        p2.x = p1.x + dx;
+        p2.y = p1.y + dy;
+        draw();
+    }
+}
+
+// 4. Обновление статистики (площадь, периметр) в интерфейсе
+function updateStats() {
+    let r = rooms[activeRoom];
+    if (!r) return;
+    let p = 0, a = 0;
+    for (let i = 0; i < r.points.length; i++) {
+        let j = (i + 1) % r.points.length;
+        p += Math.sqrt((r.points[j].x - r.points[i].x)**2 + (r.points[j].y - r.points[i].y)**2);
+        if (r.closed) a += r.points[i].x * r.points[j].y - r.points[j].x * r.points[i].y;
+    }
+    const area = r.closed ? Math.abs(a / 2) / 1000000 : 0;
+    const perim = p / 1000;
+
+    if(document.getElementById('stat-area')) document.getElementById('stat-area').innerText = area.toFixed(2) + " м²";
+    if(document.getElementById('stat-perim')) document.getElementById('stat-perim').innerText = perim.toFixed(2) + " м.п.";
+}
 
 
 
