@@ -933,4 +933,118 @@ function initTouchHandlers() {
         touchState.moved = false;
     }, { passive: false });
 }
+// --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
+
+function saveProject() {
+    // Проверка авторизации (используем вашу логику SaaS)
+    if (!currentUser) {
+        alert("Пожалуйста, войдите в систему для сохранения проектов.");
+        return;
+    }
+
+    const projectName = prompt("Введите название проекта:", `Проект от ${new Date().toLocaleDateString()}`);
+    if (!projectName || projectName.trim() === "") return;
+
+    try {
+        const storageKey = `cp_data_${currentUser.email}`;
+        const existingProjects = JSON.parse(localStorage.getItem(storageKey) || "[]");
+
+        const newProject = {
+            id: Date.now(),
+            name: projectName.trim(),
+            date: new Date().toLocaleString('ru-RU'),
+            data: JSON.parse(JSON.stringify(rooms)) // Глубокое копирование текущего состояния комнат
+        };
+
+        existingProjects.unshift(newProject); // Добавляем в начало списка
+        localStorage.setItem(storageKey, JSON.stringify(existingProjects));
+        
+        // Визуальное подтверждение (можно заменить на кастомный toast)
+        alert("✅ Проект успешно сохранен в вашем профиле!");
+    } catch (e) {
+        console.error("Ошибка сохранения:", e);
+        alert("Ошибка при сохранении. Возможно, браузер ограничивает объем памяти.");
+    }
+}
+
+function openProjectsModal() {
+    if (!currentUser) {
+        alert("Войдите в систему для просмотра ваших проектов.");
+        return;
+    }
+
+    const storageKey = `cp_data_${currentUser.email}`;
+    const projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    const container = document.getElementById('projectsListContainer');
+    
+    container.innerHTML = ""; // Очистка
+
+    if (projects.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                <div style="font-size: 40px; margin-bottom: 10px;">empty</div>
+                <p>У вас пока нет сохраненных проектов.</p>
+            </div>`;
+    } else {
+        projects.forEach(project => {
+            const item = document.createElement('div');
+            item.className = 'project-item';
+            item.innerHTML = `
+                <div class="project-info">
+                    <span class="project-name">${project.name}</span>
+                    <span class="project-meta">${project.date}</span>
+                </div>
+                <div class="project-actions">
+                    <button class="btn-load" onclick="loadProject(${project.id})">Открыть</button>
+                    <button class="btn-delete" onclick="deleteProject(${project.id})">🗑️</button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    document.getElementById('projectsModal').style.display = 'flex';
+}
+
+function loadProject(projectId) {
+    const storageKey = `cp_data_${currentUser.email}`;
+    const projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    const project = projects.find(p => p.id === projectId);
+
+    if (project) {
+        if (confirm(`Загрузить проект "${project.name}"? Текущая работа будет заменена.`)) {
+            // Восстанавливаем данные
+            rooms = JSON.parse(JSON.stringify(project.data));
+            activeRoom = 0;
+            
+            // Вызываем существующие функции отрисовки
+            if (typeof renderTabs === 'function') renderTabs();
+            if (typeof draw === 'function') draw();
+            
+            closeProjectsModal();
+        }
+    }
+}
+
+function deleteProject(projectId) {
+    if (confirm("Вы уверены, что хотите удалить этот проект?")) {
+        const storageKey = `cp_data_${currentUser.email}`;
+        let projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        projects = projects.filter(p => p.id !== projectId);
+        localStorage.setItem(storageKey, JSON.stringify(projects));
+        openProjectsModal(); // Перерисовываем список
+    }
+}
+
+function closeProjectsModal() {
+    document.getElementById('projectsModal').style.display = 'none';
+}
+
+// Закрытие модалки по клику на фон
+window.onclick = function(event) {
+    const modal = document.getElementById('projectsModal');
+    if (event.target == modal) {
+        closeProjectsModal();
+    }
+}
 
