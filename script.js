@@ -1111,7 +1111,7 @@ async function openProjectsModal() {
                 </div>
                 <div class="project-actions">
                     <button class="btn-load" onclick="loadCloudProject('${projectId}')">Открыть</button>
-                    <button class="btn-delete" onclick="deleteCloudProject('${projectId}')">🗑️</button>
+                    <button class="btn-delete" onclick="deleteCloudProject('${projectId}')">✖</button>
                 </div>
             `;
             container.appendChild(item);
@@ -1171,6 +1171,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
