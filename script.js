@@ -12,6 +12,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+let selectedRegPlan = 'free';
 // Этот код проверяет, вошел ли пользователь, каждый раз при обновлении страницы
 auth.onAuthStateChanged((user) => {
     if (user) {
@@ -55,30 +56,41 @@ function handleLogin() {
         .catch((error) => alert("Ошибка входа: " + error.message));
 }
 
-// --- ОБЛАЧНАЯ РЕГИСТРАЦИЯ (FIREBASE) ---
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ РЕГИСТРАЦИИ ---
 async function handleRegister() {
-    const name = document.getElementById('reg-name').value;
-    const email = document.getElementById('reg-email').value;
-    const pass = document.getElementById('reg-pass').value;
+    // Получаем элементы
+    const nameEl = document.getElementById('reg-name');
+    const emailEl = document.getElementById('reg-email');
+    const passEl = document.getElementById('reg-pass');
 
-    // ДОБАВЬТЕ ЭТУ СТРОКУ:
-    console.log("Регистрация:", { name, email, pass });
+    // Проверяем существование элементов, чтобы избежать ошибок в консоли
+    if (!nameEl || !emailEl || !passEl) {
+        console.error("Критическая ошибка: Не найдены поля регистрации в HTML");
+        return;
+    }
+
+    const name = nameEl.value.trim();
+    const email = emailEl.value.trim();
+    const pass = passEl.value.trim();
+
+    // Лог для проверки, что именно прилетает из полей
+    console.log("Попытка регистрации:", { name, email, pass, plan: selectedRegPlan });
 
     if (!name || !email || !pass) { 
-        alert("Пожалуйста, заполните все поля"); 
+        alert("Пожалуйста, заполните все поля (Имя, Email и Пароль)"); 
         return; 
     }
 
     try {
-        // 1. Создаем пользователя в системе аутентификации Google
+        // 1. Создаем пользователя в Firebase Auth
         const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
         const user = userCredential.user;
 
-        // 2. Записываем дополнительные данные (имя, план) в базу Firestore
+        // 2. Записываем данные в Firestore
         await db.collection("users").doc(user.uid).set({
             name: name,
             email: email,
-            plan: selectedRegPlan, // Ваша переменная тарифа
+            plan: selectedRegPlan || 'free', // Если план не выбран, ставим free
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -87,11 +99,10 @@ async function handleRegister() {
         
     } catch (error) {
         console.error("Ошибка регистрации:", error);
-        // Обработка типичных ошибок Firebase
         if (error.code === 'auth/email-already-in-use') {
-            alert("Этот email уже занят другим пользователем.");
+            alert("Этот email уже занят.");
         } else if (error.code === 'auth/weak-password') {
-            alert("Пароль должен быть не менее 6 символов.");
+            alert("Пароль слишком короткий (минимум 6 символов).");
         } else {
             alert("Ошибка: " + error.message);
         }
@@ -1120,6 +1131,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
