@@ -13,6 +13,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let selectedRegPlan = 'free';
+let currentUser = null;
 // Этот код проверяет, вошел ли пользователь, каждый раз при обновлении страницы
 auth.onAuthStateChanged((user) => {
     if (user) {
@@ -1131,6 +1132,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
