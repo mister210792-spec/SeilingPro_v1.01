@@ -1,92 +1,64 @@
-// --- SAAS LOGIC ---
+// --- SAAS LOGIC (FIREBASE VERSION) ---
 let currentUser = null;
 let selectedRegPlan = 'free';
 
-function toggleAuthForms() {
-    const isLogin = document.getElementById('login-form').style.display !== 'none';
-    document.getElementById('login-form').style.display = isLogin ? 'none' : 'block';
-    document.getElementById('reg-form').style.display = isLogin ? 'block' : 'none';
-}
-
-function selectPlan(plan) {
-    selectedRegPlan = plan;
-    document.getElementById('p-free').classList.toggle('active', plan === 'free');
-    document.getElementById('p-pro').classList.toggle('active', plan === 'pro');
-}
+// Проверка авторизации в реальном времени
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        // Принудительная проверка: не удален ли пользователь в консоли
+        user.getIdToken(true).then(() => {
+            db.collection("users").doc(user.uid).get().then((doc) => {
+                if (doc.exists) {
+                    currentUser = { id: user.uid, email: user.email, ...doc.data() };
+                    completeAuth();
+                } else {
+                    handleLogout();
+                }
+            });
+        }).catch(() => {
+            handleLogout(); // Если юзер удален в Firebase, его выкинет
+        });
+    } else {
+        document.getElementById('auth-overlay').style.display = 'flex';
+    }
+});
 
 function handleLogin() {
-    const email = document.getElementById('email').value;
-    if(!email) { alert("Введите почту"); return; }
+    // .trim().toLowerCase() решает проблему с регистром и пробелами
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    const pass = document.getElementById('pass').value;
+
+    if(!email || !pass) { alert("Введите почту и пароль"); return; }
     
-    // Пытаемся найти в localStorage
-    const saved = localStorage.getItem('saas_user_' + email);
-    if(saved) {
-        currentUser = JSON.parse(saved);
-        completeAuth();
-    } else {
-        alert("Пользователь не найден. Пожалуйста, зарегистрируйтесь.");
-    }
+    auth.signInWithEmailAndPassword(email, pass)
+        .catch(err => alert("Ошибка входа: " + err.message));
 }
 
-function handleRegister() {
-    const name = document.getElementById('reg-name').value;
-    const email = document.getElementById('reg-email').value;
+async function handleRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
     const pass = document.getElementById('reg-pass').value;
 
     if(!name || !email || !pass) { alert("Заполните все поля"); return; }
 
-    currentUser = { name, email, plan: selectedRegPlan };
-    localStorage.setItem('saas_user_' + email, JSON.stringify(currentUser));
-    localStorage.setItem('saas_last_user', email);
-    completeAuth();
-}
-
-function completeAuth() {
-    document.getElementById('auth-overlay').style.display = 'none';
-    document.getElementById('header-user').innerText = currentUser.name;
-    document.getElementById('header-plan').innerText = "План: " + currentUser.plan.toUpperCase();
-    
-    if(currentUser.plan === 'pro') {
-        document.getElementById('header-plan').style.background = 'var(--gold)';
-        document.getElementById('header-plan').style.color = 'var(--dark)';
+    try {
+        const cred = await auth.createUserWithEmailAndPassword(email, pass);
+        await db.collection("users").doc(cred.user.uid).set({
+            name: name,
+            email: email,
+            plan: selectedRegPlan
+        });
+        alert("Регистрация успешна!");
+    } catch (err) {
+        alert("Ошибка регистрации: " + err.message);
     }
-
-    // Загрузка данных приложения
-    loadAllSettings();
-    initSelectors();
-    
-    // Если в бесплатном плане уже есть комнаты, оставляем только одну (защита)
-    if(currentUser.plan === 'free' && rooms.length > 1) {
-        rooms = rooms.slice(0, 1);
-        renderTabs();
-        draw();
-    } else if (rooms.length === 0) {
-        addRoom();
-    }
-
-    // ** ВАЖНО: инициализируем мобильные обработчики после входа **
-    initTouchHandlers();
 }
 
 function handleLogout() {
-    if(confirm("Выйти из системы?")) {
-        localStorage.removeItem('saas_last_user');
+    auth.signOut().then(() => {
         location.reload();
-    }
+    });
 }
-
-// Проверка при загрузке страницы
-window.onload = () => {
-    const lastUserEmail = localStorage.getItem('saas_last_user');
-    if(lastUserEmail) {
-        const saved = localStorage.getItem('saas_user_' + lastUserEmail);
-        if(saved) {
-            currentUser = JSON.parse(saved);
-            completeAuth();
-            return;
-        }
-    }
-};
 
 
 // --- CORE APPLICATION LOGIC (PRESERVED) ---
@@ -1047,5 +1019,6 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
