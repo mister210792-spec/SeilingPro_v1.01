@@ -629,35 +629,114 @@ svg.addEventListener("wheel", (e) => {
 }, { passive: false });
 
 function updateStats() {
-    let listHTML = ""; let totalArea = 0; let totalPerim = 0; let totalElemCounts = {};
+    let listHTML = "";
+    let totalArea = 0;
+    let totalPerim = 0;
+    let totalElemCounts = {};
+
     rooms.forEach((r, idx) => {
         let p = 0, a = 0;
-        for(let i=0; i<r.points.length; i++) {
-            let j = (i+1)%r.points.length; p += Math.sqrt((r.points[j].x-r.points[i].x)**2 + (r.points[j].y-r.points[i].y)**2);
-            if(r.closed) a += r.points[i].x * r.points[j].y - r.points[j].x * r.points[i].y;
+        for (let i = 0; i < r.points.length; i++) {
+            let j = (i + 1) % r.points.length;
+            p += Math.sqrt((r.points[j].x - r.points[i].x) ** 2 + (r.points[j].y - r.points[i].y) ** 2);
+            if (r.closed) a += r.points[i].x * r.points[j].y - r.points[j].x * r.points[i].y;
         }
-        let ra = r.closed ? Math.abs(a/2)/1000000 : 0; totalArea += ra; totalPerim += (p/1000);
+        let ra = r.closed ? Math.abs(a / 2) / 1000000 : 0;
+        totalArea += ra;
+        totalPerim += (p / 1000);
+
         if (idx === activeRoom) {
-            document.getElementById("roomTitle").innerText = r.name; document.getElementById("currentArea").innerText = ra.toFixed(2) + " м²"; document.getElementById("currentPerim").innerText = (p/1000).toFixed(2) + " м";
+            document.getElementById("roomTitle").innerText = r.name;
+            document.getElementById("currentArea").innerText = ra.toFixed(2) + " м²";
+            document.getElementById("currentPerim").innerText = (p / 1000).toFixed(2) + " м";
+            
             if (r.elements?.length > 0) {
                 let counts = {};
                 r.elements.forEach(el => {
                     let name = el.type === 'pipe' ? 'Обвод трубы' : (LIGHT_DATA[el.subtype]?.label || EXTRA_DATA[el.subtype]?.label || RAIL_DATA[el.subtype]?.label || el.subtype);
-                    let key = el.width ? `${name} (${el.width/10} см)` : name; counts[key] = (counts[key] || 0) + 1;
+                    let key = el.width ? `${name} (${el.width / 10} см)` : name;
+                    counts[key] = (counts[key] || 0) + 1;
                 });
-                for (let k in counts) listHTML += `<div class="estimate-item"><span>${k}</span> <span class="estimate-qty">${counts[k]} шт.</span></div>`;
-            } else listHTML = "Нет элементов";
+                for (let k in counts) {
+                    listHTML += `<li>${k}: ${counts[k]} шт.</li>`;
+                }
+            }
         }
-        r.elements?.forEach(el => {
-            let name = el.type === 'pipe' ? 'Обвод трубы' : (LIGHT_DATA[el.subtype]?.label || EXTRA_DATA[el.subtype]?.label || RAIL_DATA[el.subtype]?.label || el.subtype);
-            let key = el.width ? `${name} (${el.width/10} см)` : name; totalElemCounts[key] = (totalElemCounts[key] || 0) + 1;
-        });
     });
-    document.getElementById("elementsList").innerHTML = listHTML; document.getElementById("totalArea").innerText = totalArea.toFixed(2) + " м²"; document.getElementById("totalPerim").innerText = totalPerim.toFixed(2) + " м";
-    let teH = ""; for (let n in totalElemCounts) teH += `${n}: ${totalElemCounts[n]} шт. | `; document.getElementById("totalElements").innerText = teH || "Нет элементов";
-    return totalElemCounts;
+    document.getElementById("elementList").innerHTML = listHTML;
 }
 
+// Функции сохранения в облако (добавьте их в самый конец, если их еще нет)
+async function saveProjectCloud() {
+    if (!currentUser) return alert("Войдите в систему");
+    const name = prompt("Название проекта:", "Мой проект");
+    if (!name) return;
+
+    try {
+        await db.collection("projects").add({
+            userId: currentUser.id,
+            name: name,
+            rooms: rooms,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Проект сохранен в облако!");
+    } catch (e) {
+        alert("Ошибка сохранения: " + e.message);
+    }
+}
+
+async function openProjectsModal() {
+    if (!currentUser) return alert("Войдите в систему");
+    const container = document.getElementById('projectsListContainer');
+    container.innerHTML = "Загрузка...";
+    document.getElementById('projectsModal').style.display = 'flex';
+
+    try {
+        const snapshot = await db.collection("projects")
+            .where("userId", "==", currentUser.id)
+            .get();
+        
+        let html = "";
+        snapshot.forEach(doc => {
+            const p = doc.data();
+            html += `
+                <div class="project-item">
+                    <div class="project-info">
+                        <span class="project-name">${p.name}</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn-load" onclick="loadCloudProject('${doc.id}')">Открыть</button>
+                        <button class="btn-del" onclick="deleteCloudProject('${doc.id}')">×</button>
+                    </div>
+                </div>`;
+        });
+        container.innerHTML = html || "Проектов пока нет";
+    } catch (e) {
+        container.innerHTML = "Ошибка: " + e.message;
+    }
+}
+
+async function loadCloudProject(id) {
+    try {
+        const doc = await db.collection("projects").doc(id).get();
+        if (doc.exists) {
+            rooms = doc.data().rooms;
+            activeRoom = 0;
+            renderTabs();
+            draw();
+            document.getElementById('projectsModal').style.display = 'none';
+        }
+    } catch (e) {
+        alert("Ошибка загрузки");
+    }
+}
+
+async function deleteCloudProject(id) {
+    if (confirm("Удалить проект?")) {
+        await db.collection("projects").doc(id).delete();
+        openProjectsModal();
+    }
+}
 function resizeWall(i) {
     let r = rooms[activeRoom]; let p1 = r.points[i], p2 = r.points[(i + 1) % r.points.length];
     let curLen = Math.round(Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2)/10);
@@ -1102,4 +1181,5 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
