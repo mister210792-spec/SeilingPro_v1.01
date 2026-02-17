@@ -632,20 +632,50 @@ svg.onclick = (e) => {
     if (currentTool !== 'draw') {
         saveState(); if (!r.elements) r.elements = [];
         let sub = (currentTool === 'light') ? document.getElementById("lightTypeSelector").value : (currentTool === 'rail' ? document.getElementById("railTypeSelector").value : document.getElementById("extraTypeSelector").value);
-        let s = getSnappedPos(mmX, mmY); let def = getElementDef(sub);
+        let s = getSnappedPos(mmX, mmY); 
         let newEl = { type: currentTool, subtype: sub, x: s.x, y: s.y, rotation: 0 };
-        const isLinear = def.type === 'linear' || currentTool === 'rail';
-        if (isLinear) { let dl = prompt("Длина (см):", "200"); newEl.width = (parseFloat(dl) * 10) || 2000; }
-        r.elements.push(newEl); draw(); return;
+        const def = getElementDef(sub);
+        if (def.type === 'linear' || currentTool === 'rail') { 
+            let dl = prompt("Длина (см):", "200"); 
+            newEl.width = (parseFloat(dl) * 10) || 2000; 
+        }
+        r.elements.push(newEl); 
+        draw(); 
+        return;
     }
-    if (r.closed || dragId) return;
+   if (r.closed || dragId) return;
     let first = r.points[0];
-    if (r.points.length >= 3 && Math.sqrt((e.clientX - rect.left - mmToPx(first.x, 'x'))**2 + (e.clientY - rect.top - mmToPx(first.y, 'y'))**2) < 25) { saveState(); r.closed = true; draw(); return; }
-    saveState(); let sX = snap(mmX, first ? first.x : null); let sY = snap(mmY, first ? first.y : null);
+    if (r.points.length >= 3 && Math.sqrt((e.clientX - rect.left - mmToPx(first.x, 'x'))**2 + (e.clientY - rect.top - mmToPx(first.y, 'y'))**2) < 25) { 
+        saveState(); r.closed = true; draw(); return; 
+    }
+    saveState();
     let last = r.points[r.points.length - 1];
-    if (last && !e.shiftKey) { if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) sY = last.y; else sX = last.x; }
-    r.points.push({ id: Date.now(), x: sX, y: sY }); draw();
+    let sX = snap(mmX, first ? first.x : null);
+    let sY = snap(mmY, first ? first.y : null);
+    if (last && !mousePos.shift) {
+        if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) sY = last.y; 
+        else sX = last.x;
+    }
+    r.points.push({ id: Date.now(), x: sX, y: sY });
+    draw();
 };
+function createLine(x1, y1, x2, y2, stroke, width, dash) {
+    let l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    l.setAttribute("x1", x1); l.setAttribute("y1", y1);
+    l.setAttribute("x2", x2); l.setAttribute("y2", y2);
+    l.setAttribute("stroke", stroke); l.setAttribute("stroke-width", width);
+    if (dash) l.setAttribute("stroke-dasharray", dash);
+    return l;
+}
+
+function renderText(x, y, text, className) {
+    let t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", x); t.setAttribute("y", y);
+    t.setAttribute("class", className);
+    t.textContent = text;
+    svg.appendChild(t);
+    return t;
+}
 
 svg.addEventListener("wheel", (e) => {
     e.preventDefault();
@@ -1132,6 +1162,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
