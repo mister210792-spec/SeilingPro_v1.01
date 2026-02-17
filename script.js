@@ -1,6 +1,39 @@
-// --- SAAS LOGIC ---
-let currentUser = null;
-let selectedRegPlan = 'free';
+const firebaseConfig = {
+    apiKey : "AIzaSyBe4dfQAk6aiMHlZv2p3KqMw8dXrrS6pNM" , 
+  authDomain : "seiling-plan-pro.firebaseapp.com" , 
+  projectId : "сейлинг-план-про" , 
+  storageBucket : "seiling-plan-pro.firebasestorage.app" , 
+  messagingSenderId : "536435562249" , 
+  appId : "1:536435562249:web:063858060492dc6f47a5d8" , 
+  measurementId : "G-6TXYE369QD" 
+};
+
+// Инициализация
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+// Этот код проверяет, вошел ли пользователь, каждый раз при обновлении страницы
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        // Если пользователь авторизован в Google Firebase
+        db.collection("users").doc(user.uid).get().then((doc) => {
+            // Собираем данные профиля из базы данных
+            currentUser = { 
+                id: user.uid, 
+                email: user.email,
+                ...doc.data() 
+            };
+            console.log("Пользователь вошел:", currentUser.email);
+            completeAuth(); // Вызываем вашу функцию, чтобы убрать окно входа
+        });
+    } else {
+        // Если пользователь не вошел, обнуляем переменную
+        currentUser = null;
+        console.log("Пользователь не авторизован");
+        // Здесь можно принудительно показать окно входа, если оно скрыто
+        document.getElementById('auth-overlay').style.display = 'flex';
+    }
+});
 
 function toggleAuthForms() {
     const isLogin = document.getElementById('login-form').style.display !== 'none';
@@ -16,29 +49,35 @@ function selectPlan(plan) {
 
 function handleLogin() {
     const email = document.getElementById('email').value;
-    if(!email) { alert("Введите почту"); return; }
-    
-    // Пытаемся найти в localStorage
-    const saved = localStorage.getItem('saas_user_' + email);
-    if(saved) {
-        currentUser = JSON.parse(saved);
-        completeAuth();
-    } else {
-        alert("Пользователь не найден. Пожалуйста, зарегистрируйтесь.");
-    }
+    const pass = document.getElementById('pass').value;
+
+    auth.signInWithEmailAndPassword(email, pass)
+        .catch((error) => alert("Ошибка входа: " + error.message));
+}
 }
 
 function handleRegister() {
-    const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
     const pass = document.getElementById('reg-pass').value;
+    const name = document.getElementById('reg-name').value;
 
-    if(!name || !email || !pass) { alert("Заполните все поля"); return; }
+    if(!email || !pass) return alert("Заполните данные");
 
-    currentUser = { name, email, plan: selectedRegPlan };
-    localStorage.setItem('saas_user_' + email, JSON.stringify(currentUser));
-    localStorage.setItem('saas_last_user', email);
-    completeAuth();
+    auth.createUserWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            // Сохраняем дополнительные данные пользователя в БД
+            return db.collection("users").doc(userCredential.user.uid).set({
+                name: name,
+                email: email,
+                plan: selectedRegPlan,
+                createdAt: new Date()
+            });
+        })
+        .then(() => {
+            alert("Регистрация успешна!");
+            // completeAuth() вызовется автоматически через наблюдатель (см. Шаг 4)
+        })
+        .catch((error) => alert(error.message));
 }
 
 function completeAuth() {
@@ -935,117 +974,145 @@ function initTouchHandlers() {
 }
 // --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
-function saveProject() {
-    // Проверка авторизации (используем вашу логику SaaS)
-    if (!currentUser) {
-        alert("Пожалуйста, войдите в систему для сохранения проектов.");
+// --- ОБЛАЧНОЕ СОХРАНЕНИЕ В FIRESTORE ---
+async function saveProject() {
+    // 1. Проверяем, авторизован ли пользователь (уже через Firebase)
+    if (!currentUser || !auth.currentUser) {
+        alert("Пожалуйста, войдите в систему, чтобы сохранять проекты в облако.");
         return;
     }
 
-    const projectName = prompt("Введите название проекта:", `Проект от ${new Date().toLocaleDateString()}`);
+    // 2. Спрашиваем название проекта
+    const projectName = prompt("Введите название проекта для сохранения в облаке:", `Проект от ${new Date().toLocaleDateString()}`);
     if (!projectName || projectName.trim() === "") return;
 
     try {
-        const storageKey = `cp_data_${currentUser.email}`;
-        const existingProjects = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        // Показываем пользователю, что идет процесс (опционально)
+        console.log("Сохранение...");
 
-        const newProject = {
-            id: Date.now(),
+        // 3. Записываем данные в коллекцию "projects" в Firebase Firestore
+        await db.collection("projects").add({
+            userId: auth.currentUser.uid, // Привязываем проект к уникальному ID пользователя
+            userEmail: currentUser.email,
             name: projectName.trim(),
-            date: new Date().toLocaleString('ru-RU'),
-            data: JSON.parse(JSON.stringify(rooms)) // Глубокое копирование текущего состояния комнат
-        };
+            rooms: JSON.parse(JSON.stringify(rooms)), // Копируем текущие комнаты
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() // Серверное время Google
+        });
 
-        existingProjects.unshift(newProject); // Добавляем в начало списка
-        localStorage.setItem(storageKey, JSON.stringify(existingProjects));
-        
-        // Визуальное подтверждение (можно заменить на кастомный toast)
-        alert("✅ Проект успешно сохранен в вашем профиле!");
-    } catch (e) {
-        console.error("Ошибка сохранения:", e);
-        alert("Ошибка при сохранении. Возможно, браузер ограничивает объем памяти.");
+        alert("✅ Проект успешно сохранен в облаке! Теперь он доступен с любого устройства.");
+    } catch (error) {
+        console.error("Ошибка сохранения в Firebase:", error);
+        alert("Произошла ошибка при сохранении: " + error.message);
     }
 }
 
-function openProjectsModal() {
-    if (!currentUser) {
-        alert("Войдите в систему для просмотра ваших проектов.");
+// --- ОБЛАЧНОЕ УПРАВЛЕНИЕ ПРОЕКТАМИ (FIREBASE) ---
+
+// 1. Открытие модального окна и загрузка списка из облака
+async function openProjectsModal() {
+    if (!auth.currentUser) {
+        alert("Войдите в систему для доступа к облачным проектам");
         return;
     }
 
-    const storageKey = `cp_data_${currentUser.email}`;
-    const projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
     const container = document.getElementById('projectsListContainer');
     
-    container.innerHTML = ""; // Очистка
+    // Красивый индикатор загрузки
+    container.innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+            <div style="color: var(--primary); font-size: 14px;">Синхронизация с облаком...</div>
+        </div>`;
+    
+    document.getElementById('projectsModal').style.display = 'flex';
 
-    if (projects.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
-                <div style="font-size: 40px; margin-bottom: 10px;">empty</div>
-                <p>У вас пока нет сохраненных проектов.</p>
-            </div>`;
-    } else {
-        projects.forEach(project => {
+    try {
+        // Запрос к Firestore: только проекты текущего пользователя, сортировка по дате
+        const snapshot = await db.collection("projects")
+            .where("userId", "==", auth.currentUser.uid)
+            .orderBy("createdAt", "desc")
+            .get();
+
+        container.innerHTML = ""; 
+
+        if (snapshot.empty) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: #94a3b8;">
+                    <p>У вас пока нет сохраненных проектов в облаке.</p>
+                </div>`;
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            const project = doc.data();
+            const projectId = doc.id; // Уникальный ID документа в Google
+            const dateStr = project.createdAt ? project.createdAt.toDate().toLocaleString('ru-RU') : 'Недавно';
+            
             const item = document.createElement('div');
             item.className = 'project-item';
             item.innerHTML = `
                 <div class="project-info">
                     <span class="project-name">${project.name}</span>
-                    <span class="project-meta">${project.date}</span>
+                    <span class="project-meta">${dateStr}</span>
                 </div>
                 <div class="project-actions">
-                    <button class="btn-load" onclick="loadProject(${project.id})">Открыть</button>
-                    <button class="btn-delete" onclick="deleteProject(${project.id})">❌</button>
+                    <button class="btn-load" onclick="loadCloudProject('${projectId}')">Открыть</button>
+                    <button class="btn-delete" onclick="deleteCloudProject('${projectId}')">🗑️</button>
                 </div>
             `;
             container.appendChild(item);
         });
-    }
 
-    document.getElementById('projectsModal').style.display = 'flex';
+    } catch (error) {
+        console.error("Ошибка Firestore:", error);
+        container.innerHTML = `<p style="color: var(--danger); text-align:center;">Ошибка: ${error.message}</p>`;
+    }
 }
 
-function loadProject(projectId) {
-    const storageKey = `cp_data_${currentUser.email}`;
-    const projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
-    const project = projects.find(p => p.id === projectId);
+// 2. Загрузка проекта из облака в приложение
+async function loadCloudProject(projectId) {
+    try {
+        const doc = await db.collection("projects").doc(projectId).get();
+        if (doc.exists) {
+            const project = doc.data();
+            if (confirm(`Загрузить проект "${project.name}"? Текущие изменения на холсте будут заменены.`)) {
+                
+                // Глубокое копирование данных из облака в текущий массив комнат
+                rooms = JSON.parse(JSON.stringify(project.rooms));
+                activeRoom = 0;
+                
+                // Обновление интерфейса (ваши стандартные функции)
+                if (typeof renderTabs === 'function') renderTabs();
+                if (typeof draw === 'function') draw();
+                
+                closeProjectsModal();
+            }
+        }
+    } catch (error) {
+        alert("Ошибка при загрузке: " + error.message);
+    }
+}
 
-    if (project) {
-        if (confirm(`Загрузить проект "${project.name}"? Текущая работа будет заменена.`)) {
-            // Восстанавливаем данные
-            rooms = JSON.parse(JSON.stringify(project.data));
-            activeRoom = 0;
-            
-            // Вызываем существующие функции отрисовки
-            if (typeof renderTabs === 'function') renderTabs();
-            if (typeof draw === 'function') draw();
-            
-            closeProjectsModal();
+// 3. Удаление проекта из облака
+async function deleteCloudProject(projectId) {
+    if (confirm("Вы уверены, что хотите навсегда удалить этот проект из облака?")) {
+        try {
+            await db.collection("projects").doc(projectId).delete();
+            openProjectsModal(); // Перезагружаем список
+        } catch (error) {
+            alert("Ошибка удаления: " + error.message);
         }
     }
 }
 
-function deleteProject(projectId) {
-    if (confirm("Вы уверены, что хотите удалить этот проект?")) {
-        const storageKey = `cp_data_${currentUser.email}`;
-        let projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
-        projects = projects.filter(p => p.id !== projectId);
-        localStorage.setItem(storageKey, JSON.stringify(projects));
-        openProjectsModal(); // Перерисовываем список
-    }
-}
-
+// 4. Закрытие окна
 function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
 
-// Закрытие модалки по клику на фон
+// 5. Закрытие по клику на фон
 window.onclick = function(event) {
     const modal = document.getElementById('projectsModal');
     if (event.target == modal) {
         closeProjectsModal();
     }
 }
-
-
