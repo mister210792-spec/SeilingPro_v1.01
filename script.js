@@ -371,7 +371,7 @@ let touchState = {
     dragId: null,          // для перетаскивания точек
     dragElem: null,        // для перетаскивания элементов
     moved: false,          // был ли сдвиг после касания (чтобы отличить тап от свайпа)
-    MOVE_THRESHOLD: 5,      // порог движения в пикселях
+    MOVE_THRESHOLD: 1,      // порог движения в пикселях
     longPressTimer: null,
     isLongPress: false,
     rotationCandidate: null,     // элемент, который будем вращать
@@ -1171,6 +1171,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
