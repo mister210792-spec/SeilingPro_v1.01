@@ -105,7 +105,6 @@ async function handleRegister() {
         } else {
             alert("Ошибка: " + error.message);
         }
-    }
 }
 
 function handleLogout() {
@@ -1103,3 +1102,4 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
