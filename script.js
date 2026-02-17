@@ -54,7 +54,6 @@ function handleLogin() {
     auth.signInWithEmailAndPassword(email, pass)
         .catch((error) => alert("Ошибка входа: " + error.message));
 }
-}
 
 // --- ОБЛАЧНАЯ РЕГИСТРАЦИЯ (FIREBASE) ---
 async function handleRegister() {
@@ -129,20 +128,6 @@ function handleLogout() {
         location.reload();
     }
 }
-
-// Проверка при загрузке страницы
-window.onload = () => {
-    const lastUserEmail = localStorage.getItem('saas_last_user');
-    if(lastUserEmail) {
-        const saved = localStorage.getItem('saas_user_' + lastUserEmail);
-        if(saved) {
-            currentUser = JSON.parse(saved);
-            completeAuth();
-            return;
-        }
-    }
-};
-
 
 // --- CORE APPLICATION LOGIC (PRESERVED) ---
 const svg = document.getElementById("canvas");
@@ -1132,4 +1117,5 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
