@@ -61,6 +61,9 @@ async function handleRegister() {
     const email = document.getElementById('reg-email').value;
     const pass = document.getElementById('reg-pass').value;
 
+    // ДОБАВЬТЕ ЭТУ СТРОКУ:
+    console.log("Регистрация:", { name, email, pass });
+
     if (!name || !email || !pass) { 
         alert("Пожалуйста, заполните все поля"); 
         return; 
@@ -1117,5 +1120,6 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
