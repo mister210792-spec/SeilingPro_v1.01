@@ -56,28 +56,44 @@ function handleLogin() {
 }
 }
 
-function handleRegister() {
+// --- ОБЛАЧНАЯ РЕГИСТРАЦИЯ (FIREBASE) ---
+async function handleRegister() {
+    const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
     const pass = document.getElementById('reg-pass').value;
-    const name = document.getElementById('reg-name').value;
 
-    if(!email || !pass) return alert("Заполните данные");
+    if (!name || !email || !pass) { 
+        alert("Пожалуйста, заполните все поля"); 
+        return; 
+    }
 
-    auth.createUserWithEmailAndPassword(email, pass)
-        .then((userCredential) => {
-            // Сохраняем дополнительные данные пользователя в БД
-            return db.collection("users").doc(userCredential.user.uid).set({
-                name: name,
-                email: email,
-                plan: selectedRegPlan,
-                createdAt: new Date()
-            });
-        })
-        .then(() => {
-            alert("Регистрация успешна!");
-            // completeAuth() вызовется автоматически через наблюдатель (см. Шаг 4)
-        })
-        .catch((error) => alert(error.message));
+    try {
+        // 1. Создаем пользователя в системе аутентификации Google
+        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+        const user = userCredential.user;
+
+        // 2. Записываем дополнительные данные (имя, план) в базу Firestore
+        await db.collection("users").doc(user.uid).set({
+            name: name,
+            email: email,
+            plan: selectedRegPlan, // Ваша переменная тарифа
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("Аккаунт успешно создан!");
+        // Окно закроется автоматически через auth.onAuthStateChanged
+        
+    } catch (error) {
+        console.error("Ошибка регистрации:", error);
+        // Обработка типичных ошибок Firebase
+        if (error.code === 'auth/email-already-in-use') {
+            alert("Этот email уже занят другим пользователем.");
+        } else if (error.code === 'auth/weak-password') {
+            alert("Пароль должен быть не менее 6 символов.");
+        } else {
+            alert("Ошибка: " + error.message);
+        }
+    }
 }
 
 function completeAuth() {
@@ -1116,3 +1132,4 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
