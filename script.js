@@ -652,22 +652,32 @@ svg.onclick = (e) => {
         draw(); 
         return;
     }
-   if (r.closed || dragId) return;
+
+    if (r.closed || dragId) return;
     let first = r.points[0];
+
     if (r.points.length >= 3 && Math.sqrt((e.clientX - rect.left - mmToPx(first.x, 'x'))**2 + (e.clientY - rect.top - mmToPx(first.y, 'y'))**2) < 25) { 
-        saveState(); r.closed = true; draw(); return; 
+        saveState(); 
+        r.closed = true; 
+        draw(); 
+        return; 
     }
+
     saveState();
     let last = r.points[r.points.length - 1];
     let sX = snap(mmX, first ? first.x : null);
     let sY = snap(mmY, first ? first.y : null);
+
     if (last && !mousePos.shift) {
         if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) sY = last.y; 
         else sX = last.x;
     }
+
     r.points.push({ id: Date.now(), x: sX, y: sY });
     draw();
 };
+
+// Вспомогательные функции отрисовки (необходимы для работы draw)
 function createLine(x1, y1, x2, y2, stroke, width, dash) {
     let l = document.createElementNS("http://www.w3.org/2000/svg", "line");
     l.setAttribute("x1", x1); l.setAttribute("y1", y1);
@@ -686,7 +696,9 @@ function renderText(x, y, text, className) {
     return t;
 }
 
-svg.addEventListener("wheel", (e) => {
+// Инициализация тач-событий (вставьте ту исправленную версию, что я дал выше)
+function initTouchHandlers() {
+    svg.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (e.shiftKey) {
         let r = rooms[activeRoom]; let mmX = pxToMm(mousePos.x, 'x'), mmY = pxToMm(mousePos.y, 'y');
@@ -1081,6 +1093,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
