@@ -696,13 +696,19 @@ function renderText(x, y, txt, cls) {
     t.setAttribute("x", x); t.setAttribute("y", y); t.setAttribute("class", cls); t.textContent = txt; svg.appendChild(t); return t;
 }
 
-function addRoom() { 
-    // SAAS Check
-    if(currentUser && currentUser.plan === 'free' && rooms.length >= 1) {
-        alert("В бесплатном плане доступно только 1 помещение. Перейдите на PRO для безлимита.");
-        return;
-    }
-    saveState(); rooms.push({ name: "Полотно " + (rooms.length + 1), points: [], id: Date.now(), closed: false, elements: [] }); activeRoom = rooms.length - 1; renderTabs(); draw(); 
+function addRoom() {
+    const newRoom = {
+        name: "Помещение " + (rooms.length + 1),
+        points: [],
+        elements: [],
+        closed: false
+    };
+    rooms.push(newRoom);
+    activeRoom = rooms.length - 1;
+    
+    // Обновляем интерфейс
+    if (typeof renderTabs === 'function') renderTabs();
+    if (typeof draw === 'function') draw();
 }
 
 function removeRoom(idx, e) { e.stopPropagation(); if (confirm("Удалить это помещение?")) { saveState(); rooms.splice(idx, 1); activeRoom = Math.max(0, activeRoom - 1); if (rooms.length === 0) addRoom(); renderTabs(); draw(); } }
@@ -1084,4 +1090,5 @@ function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
 };
+
 
