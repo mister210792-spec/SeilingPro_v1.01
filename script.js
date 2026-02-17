@@ -1093,15 +1093,3 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
