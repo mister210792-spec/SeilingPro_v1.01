@@ -1076,5 +1076,4 @@ async function deleteCloudProject(id) {
 function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
-
-
+};
