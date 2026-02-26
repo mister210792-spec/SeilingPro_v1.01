@@ -1095,14 +1095,16 @@ function initTouchHandlers() {
 
     canvas.addEventListener('touchmove', (e) => {
     if (document.getElementById('auth-overlay').style.display !== 'none') return;
+    
+    // ПРЕДОТВРАЩАЕМ СКРОЛЛ - это самое важное!
     e.preventDefault();
     
     const touches = e.touches;
     const rect = canvas.getBoundingClientRect();
-    const now = Date.now();
 
     // --- Два пальца: зум ---
     if (touches.length === 2 && touchState.isPinching) {
+        e.preventDefault();
         const currentDistance = getTouchDistance(touches);
         if (currentDistance === 0) return;
 
@@ -1121,6 +1123,8 @@ function initTouchHandlers() {
 
     // --- Один палец ---
     if (touches.length === 1) {
+        e.preventDefault(); // Дважды предотвращаем скролл для надежности
+        
         const touch = touches[0];
         const clientX = touch.clientX - rect.left;
         const clientY = touch.clientY - rect.top;
@@ -1130,73 +1134,55 @@ function initTouchHandlers() {
         touchState.lastTouchPos.x = clientX;
         touchState.lastTouchPos.y = clientY;
 
-        // Порог движения
+        // Сразу помечаем как moved, чтобы не было задержки
         if (!touchState.moved) {
             const dx = clientX - touchState.touchStartX;
             const dy = clientY - touchState.touchStartY;
-            if (Math.hypot(dx, dy) > touchState.MOVE_THRESHOLD) {
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) { // Уменьшил порог
                 touchState.moved = true;
             } else {
                 return;
             }
         }
 
-        // Ограничиваем частоту обновлений для плавности
-        if (now - lastMoveTime < MOVE_THROTTLE && !touchState.dragId && !touchState.dragElem) {
-            return;
-        }
-        lastMoveTime = now;
-
         // Перетаскивание точки
         if (touchState.dragId) {
+            e.preventDefault();
             const r = rooms[activeRoom];
             const point = r.points.find(p => p.id === touchState.dragId);
             if (point) {
                 const mmX = pxToMm(clientX, 'x');
                 const mmY = pxToMm(clientY, 'y');
                 point.x = snap(mmX, null, GRID_SNAP_MM);
-point.y = snap(mmY, null, GRID_SNAP_MM);
+                point.y = snap(mmY, null, GRID_SNAP_MM);
                 draw();
             }
             return;
         }
 
-        // Перетаскивание элемента
-        // Перетаскивание элемента
-if (touchState.dragElem) {
-    const r = rooms[activeRoom];
-    const el = touchState.dragElem;
-    
-    // Получаем координаты в миллиметрах
-    let mmX = pxToMm(clientX, 'x');
-    let mmY = pxToMm(clientY, 'y');
-    
-    // Вычисляем смещение относительно предыдущего кадра
-    let dx = mmX - el.x;
-    let dy = mmY - el.y;
-    
-    // Если смещение слишком большое (скачок), игнорируем
-    if (Math.abs(dx) < 100 && Math.abs(dy) < 100) {
-        // Плавно обновляем позицию
-        el.x = mmX;
-        el.y = mmY;
-        
-        // Проверяем поворот к стене
-        if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
-            checkAndRotateToWall(el, r);
+        // Перетаскивание элемента - УПРОЩЕННАЯ ВЕРСИЯ
+        if (touchState.dragElem) {
+            e.preventDefault();
+            const r = rooms[activeRoom];
+            const el = touchState.dragElem;
+            
+            // Прямое обновление позиции без лишних проверок
+            el.x = pxToMm(clientX, 'x');
+            el.y = pxToMm(clientY, 'y');
+            
+            // Мгновенная проверка поворота
+            if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
+                checkAndRotateToWall(el, r);
+            }
+            
+            // Немедленная отрисовка
+            draw();
+            return;
         }
-    }
-    
-    // Плавная отрисовка
-    if (!pendingDraw) {
-        pendingDraw = true;
-        draw();
-    }
-    return;
-}
 
         // Pan (перемещение по холсту)
         if (touchState.isPanning) {
+            e.preventDefault();
             const dx = clientX - touchState.touchStartX;
             const dy = clientY - touchState.touchStartY;
             offsetX = touchState.lastPanX + dx;
@@ -1204,7 +1190,7 @@ if (touchState.dragElem) {
             draw();
         }
     }
-}, { passive: false });
+}, { passive: false }); // passive: false ОБЯЗАТЕЛЬНО для preventDefault
 
     canvas.addEventListener('touchend', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
@@ -1261,7 +1247,7 @@ function checkAndRotateToWall(element, room) {
         // Вычисляем расстояние до стены
         let distance = distanceToSegment(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
         
-        // Если элемент близко к стене (менее 50мм) и это самая близкая стена
+        // Если элемент близко к стене (менее 50мм)
         if (distance < 50 && distance < minDistance) {
             minDistance = distance;
             bestWall = { p1, p2 };
@@ -1273,24 +1259,9 @@ function checkAndRotateToWall(element, room) {
         }
     }
     
-    // Если нашли подходящую стену
+    // Если нашли подходящую стену - МГНОВЕННЫЙ ПОВОРОТ
     if (bestWall && minDistance < 50) {
-        // Плавно поворачиваем элемент
-        let currentRotation = element.rotation || 0;
-        let targetRotation = bestAngle;
-        
-        // Интерполяция для плавного поворота
-        let rotationDiff = targetRotation - currentRotation;
-        if (Math.abs(rotationDiff) > 180) {
-            if (rotationDiff > 0) {
-                rotationDiff -= 360;
-            } else {
-                rotationDiff += 360;
-            }
-        }
-        
-        // Поворачиваем не резко, а плавно (20% от разницы)
-        element.rotation = currentRotation + rotationDiff * 0.2;
+        element.rotation = bestAngle;
         return true;
     }
     
@@ -1512,6 +1483,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
 
 
 
