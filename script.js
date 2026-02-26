@@ -740,7 +740,6 @@ if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && cur
         });
     }
     updateStats();
-}
 
 function drawSymbol(el, def) {
     let cx = mmToPx(el.x, 'x'), cy = mmToPx(el.y, 'y');
@@ -1438,6 +1437,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
