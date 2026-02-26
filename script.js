@@ -1383,4 +1383,17 @@ document.addEventListener('touchmove', (e) => {
     }
 }, { passive: true });
 
+// Добавить в функцию initMobileInterface() или создать отдельно
+document.addEventListener('click', function(e) {
+    if (!isMobile) return;
+    
+    const sideMenu = document.querySelector('.side-menu');
+    const menuBtn = document.querySelector('.mobile-menu-btn');
+    
+    if (sideMenu && sideMenu.classList.contains('visible') && 
+        !sideMenu.contains(e.target) && 
+        !menuBtn.contains(e.target)) {
+        hideMobileMenu();
+    }
+});
 
