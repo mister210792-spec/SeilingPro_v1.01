@@ -1071,50 +1071,7 @@ function initTouchHandlers() {
     canvas.addEventListener('touchstart', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
-        // Конец касания
-canvas.addEventListener('touchend', (e) => {
-    if (document.getElementById('auth-overlay').style.display !== 'none') return;
-    e.preventDefault();
-
-    // ✅ Добавьте эту проверку в начало
-    // Если было перетаскивание - не обрабатываем как клик
-    if (touchState.moved) {
-        // Сбрасываем состояния и выходим
-        touchState.isPinching = false;
-        touchState.isPanning = false;
-        touchState.dragId = null;
-        touchState.dragElem = null;
-        touchState.targetLabel = null;
-        touchState.moved = false;
-        return;
-    }
-
-    if (!touchState.moved && !touchState.isPinching && !touchState.dragId && !touchState.dragElem) {
-        if (touchState.targetLabel) {
-            // Эмулируем клик по метке длины
-            const clickEvent = new MouseEvent('click', {
-                clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
-                clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
-            });
-            touchState.targetLabel.dispatchEvent(clickEvent);
-        } else {
-            // Эмулируем клик по canvas (добавление точки)
-            const clickEvent = new MouseEvent('click', {
-                clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
-                clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
-            });
-            canvas.dispatchEvent(clickEvent);
-        }
-    }
-
-    // Сброс состояний
-    touchState.isPinching = false;
-    touchState.isPanning = false;
-    touchState.dragId = null;
-    touchState.dragElem = null;
-    touchState.targetLabel = null;
-    touchState.moved = false;
-}, { passive: false });
+        
         const touches = e.touches;
 
         // Сброс состояний
@@ -1281,6 +1238,18 @@ canvas.addEventListener('touchend', (e) => {
     canvas.addEventListener('touchend', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
+
+        // Если было перетаскивание - не обрабатываем как клик
+        if (touchState.moved) {
+            // Сбрасываем состояния и выходим
+            touchState.isPinching = false;
+            touchState.isPanning = false;
+            touchState.dragId = null;
+            touchState.dragElem = null;
+            touchState.targetLabel = null;
+            touchState.moved = false;
+            return;
+        }
 
         if (!touchState.moved && !touchState.isPinching && !touchState.dragId && !touchState.dragElem) {
             if (touchState.targetLabel) {
@@ -1553,7 +1522,7 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
-});
+
 
 
 
