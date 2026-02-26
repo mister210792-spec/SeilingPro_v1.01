@@ -18,6 +18,9 @@ function initFirebaseServices() {
     }
 }
 
+// Вызываем функцию сразу после загрузки страницы, но нужно убедиться, что Firebase уже есть.
+// В window.onload мы её вызовем.
+
 function toggleAuthForms() {
     const isLogin = document.getElementById('login-form').style.display !== 'none';
     document.getElementById('login-form').style.display = isLogin ? 'none' : 'block';
@@ -41,8 +44,16 @@ function handleLogin() {
 
     auth.signInWithEmailAndPassword(email, pass)
         .then((userCredential) => {
+            // Успешный вход
             const user = userCredential.user;
             console.log("✅ Вход выполнен:", user.email);
+
+            // Теперь нужно получить данные пользователя из Firestore (особенно тариф)
+            // Это сделает функция loadUserPlanFromFirestore, которую вызовет onAuthStateChanged
+            // Но для плавности, можно подготовить currentUser и тут.
+            // Мы положимся на onAuthStateChanged в window.onload, он сам всё подхватит.
+            // Окно входа закроется автоматически, когда сработает onAuthStateChanged.
+
         })
         .catch((error) => {
             console.error("❌ Ошибка входа:", error);
@@ -62,21 +73,28 @@ function handleRegister() {
     const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
     const pass = document.getElementById('reg-pass').value;
-    const plan = selectedRegPlan;
+    const plan = selectedRegPlan; // выбранный тариф
 
     if(!name || !email || !pass) { alert("Заполните все поля"); return; }
+
     if (!auth) { alert("Сервис регистрации временно недоступен."); return; }
 
+    // Показываем, что идет загрузка (можно добавить крутилку на кнопку)
     console.log("Пытаемся зарегистрировать...");
 
+    // Создаем пользователя в Firebase Authentication
     auth.createUserWithEmailAndPassword(email, pass)
         .then((userCredential) => {
+            // Успешно создан
             const user = userCredential.user;
             console.log("✅ Пользователь создан в Auth:", user.uid);
 
+            // Обновляем профиль - добавляем имя
             return user.updateProfile({
                 displayName: name
             }).then(() => {
+                // Теперь создаем запись о пользователе в Firestore (база данных)
+                // Сохраняем email, имя и выбранный тариф
                 return db.collection('users').doc(user.uid).set({
                     name: name,
                     email: email,
@@ -87,6 +105,10 @@ function handleRegister() {
         })
         .then(() => {
             console.log("✅ Данные пользователя сохранены в Firestore");
+            // После успеха - выполняем вход (получаем свежие данные)
+            // Функция auth.onAuthStateChanged сама подхватит нового пользователя
+            // Но нам нужно сразу сказать приложению, что мы зашли.
+            // Можно просто вызвать completeAuth, предварительно создав currentUser
             const currentFirebaseUser = auth.currentUser;
             if (currentFirebaseUser) {
                 currentUser = {
@@ -99,6 +121,7 @@ function handleRegister() {
             }
         })
         .catch((error) => {
+            // Обрабатываем ошибки
             console.error("❌ Ошибка регистрации:", error);
             let errorMessage = "Ошибка регистрации: ";
             if (error.code === 'auth/email-already-in-use') {
@@ -111,7 +134,7 @@ function handleRegister() {
             alert(errorMessage);
         });
 }
-
+// НОВАЯ ФУНКЦИЯ: Загружает план пользователя из Firestore
 function loadUserPlanFromFirestore(uid) {
     if (!db) return;
     db.collection('users').doc(uid).get()
@@ -121,6 +144,7 @@ function loadUserPlanFromFirestore(uid) {
                 if (currentUser) {
                     currentUser.plan = userData.plan || 'free';
                     console.log("План пользователя загружен:", currentUser.plan);
+                    // Обновляем отображение плана в шапке
                     const headerPlan = document.getElementById('header-plan');
                     if (headerPlan) {
                         headerPlan.innerText = "План: " + currentUser.plan.toUpperCase();
@@ -128,13 +152,14 @@ function loadUserPlanFromFirestore(uid) {
                             headerPlan.style.background = 'var(--gold)';
                             headerPlan.style.color = 'var(--dark)';
                         } else {
-                            headerPlan.style.background = '';
+                            headerPlan.style.background = ''; // сбросить
                             headerPlan.style.color = '';
                         }
                     }
                 }
             } else {
                 console.log("Документ пользователя не найден, создаем...");
+                // Если документа нет, создадим его с планом по умолчанию
                 db.collection('users').doc(uid).set({
                     plan: 'free',
                     email: currentUser?.email || 'unknown'
@@ -156,9 +181,11 @@ function completeAuth() {
         document.getElementById('header-plan').style.color = 'var(--dark)';
     }
 
+    // Загрузка данных приложения
     loadAllSettings();
     initSelectors();
     
+    // Если в бесплатном плане уже есть комнаты, оставляем только одну (защита)
     if(currentUser.plan === 'free' && rooms.length > 1) {
         rooms = rooms.slice(0, 1);
         renderTabs();
@@ -167,8 +194,8 @@ function completeAuth() {
         addRoom();
     }
 
+    // ** ВАЖНО: инициализируем мобильные обработчики после входа **
     initTouchHandlers();
-    initMenuScroll();
 }
 
 function handleLogout() {
@@ -176,39 +203,49 @@ function handleLogout() {
         if (auth) {
             auth.signOut().then(() => {
                 console.log("✅ Выход выполнен");
+                // После выхода перезагружаем страницу, чтобы вернуться к окну входа
                 location.reload();
             }).catch((error) => {
                 console.error("Ошибка выхода:", error);
             });
         } else {
+            // Запасной вариант
             localStorage.removeItem('saas_last_user');
             location.reload();
         }
     }
 }
 
+// Проверка при загрузке страницы - ЗАМЕНИ ЭТУ ФУНКЦИЮ ПОЛНОСТЬЮ
 window.onload = () => {
+    // Сначала пытаемся инициализировать Firebase сервисы
     initFirebaseServices();
-    initMenuScroll();
 
-    if (auth) {
-        auth.onAuthStateChanged((user) => {
+    // Проверяем, может быть, пользователь уже был залогинен ранее (в этом браузере)
+    if (auth) { // если Firebase авторизация доступна
+        auth.onAuthStateChanged((user) => { // слушаем состояние входа
             if (user) {
+                // Пользователь уже вошел!
                 console.log("Firebase: найден текущий пользователь", user.email);
+                // Создаем объект currentUser в том формате, который ждет твое приложение
                 currentUser = {
-                    name: user.displayName || user.email.split('@')[0],
+                    name: user.displayName || user.email.split('@')[0], // берем имя или часть почты
                     email: user.email,
                     uid: user.uid,
-                    plan: 'free'
+                    plan: 'free' // По умолчанию free. Позже будем брать из базы
                 };
+                // Загружаем его тариф из Firestore
                 loadUserPlanFromFirestore(user.uid);
+                // Завершаем вход (скрываем окно, показываем интерфейс)
                 completeAuth();
             } else {
+                // Пользователь не вошел, показываем окно входа
                 console.log("Firebase: пользователь не найден, показываем вход");
                 document.getElementById('auth-overlay').style.display = 'flex';
             }
         });
     } else {
+        // Если Firebase не загрузился, можно включить старую систему как запасной вариант
         console.warn("Firebase не доступен, использую старую локальную систему.");
         const lastUserEmail = localStorage.getItem('saas_last_user');
         if (lastUserEmail) {
@@ -221,8 +258,10 @@ window.onload = () => {
         }
         document.getElementById('auth-overlay').style.display = 'flex';
     }
-};
+};;
 
+
+// --- CORE APPLICATION LOGIC (PRESERVED) ---
 const svg = document.getElementById("canvas");
 
 let LIGHT_DATA = {
@@ -254,7 +293,7 @@ let prices = {
     'pipe': 250
 };
 
-let CUSTOM_REGISTRY = {};
+let CUSTOM_REGISTRY = {}; 
 
 function loadAllSettings() {
     const savedPrices = localStorage.getItem('cp_prices_15');
@@ -272,7 +311,7 @@ function loadAllSettings() {
     [LIGHT_DATA, EXTRA_DATA, RAIL_DATA].forEach(data => {
         for (let key in data) {
             if (prices[key] === undefined) prices[key] = data[key].price;
-            else data[key].price = prices[key];
+            else data[key].price = prices[key]; 
         }
     });
 }
@@ -310,6 +349,7 @@ function openPriceModal() {
     document.getElementById('addForm').classList.remove('visible');
     document.getElementById('btnShowAdd').style.display = 'block';
     
+    // Блокировка кастомных элементов для Free
     if(currentUser && currentUser.plan === 'free') {
         document.getElementById('price-lock').classList.add('active');
     } else {
@@ -373,7 +413,7 @@ function deleteElement(key) {
 }
 
 function toggleAddForm() {
-    if(currentUser.plan === 'free') return;
+    if(currentUser.plan === 'free') return; // Защита
     const form = document.getElementById('addForm');
     const btn = document.getElementById('btnShowAdd');
     if (form.classList.contains('visible')) {
@@ -407,8 +447,8 @@ function addNewElementConfirm() {
 }
 
 const tabs = document.getElementById("tabs");
-const GRID_SNAP_MM = 10;
-const LIGHT_SNAP_MM = 50;
+const GRID_SNAP_MM = 10; 
+const LIGHT_SNAP_MM = 50; 
 const MM_TO_PX = 3.78;
 
 let scale = 0.18;
@@ -426,14 +466,7 @@ let currentTool = 'draw';
 let showDiagonals = true;
 let showMeasures = true;
 let history = [];
-// Глобальные переменные для оптимизации
-let rafPending = false;
-let lastMoveTime = 0;
-const MOVE_THROTTLE = 16; // ~60fps
-let animationFrame = null;
-let pendingDraw = false;
-
-// Оптимизированный touchState
+// --- Переменные для мобильного управления ---
 let touchState = {
     isPinching: false,
     isPanning: false,
@@ -443,14 +476,18 @@ let touchState = {
     touchStartY: 0,
     lastPanX: 0,
     lastPanY: 0,
-    dragId: null,
-    dragElem: null,
-    moved: false,
-    MOVE_THRESHOLD: 5,
-    lastTouchPos: null,
-    lastElementPos: { x: 0, y: 0 } // для отслеживания перемещения элемента
+    dragId: null,          // для перетаскивания точек
+    dragElem: null,        // для перетаскивания элементов
+    moved: false,          // был ли сдвиг после касания (чтобы отличить тап от свайпа)
+    MOVE_THRESHOLD: 5,      // порог движения в пикселях
+    longPressTimer: null,
+    isLongPress: false,
+    rotationCandidate: null,     // элемент, который будем вращать
+    initialAngle: 0,             // начальный угол касания для вращения
+    initialRotation: 0           // начальный поворот элемента
 };
 
+// Определяем, мобильное ли устройство
 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 function mirrorRoom() {
@@ -485,7 +522,7 @@ function drawSmartGuides(currentX, currentY, excludeId) {
 }
 
 function generateFullEstimate() {
-    let totalArea = 0; let totalPerim = 0; let globalElements = {};
+    let totalArea = 0; let totalPerim = 0; let globalElements = {}; 
     rooms.forEach(r => {
         let p = 0, a = 0;
         for(let i=0; i<r.points.length; i++) {
@@ -511,8 +548,8 @@ function generateFullEstimate() {
     rowsHTML += `<tr><td>Профиль стеновой</td><td>${totalPerim.toFixed(2)} м.п.</td><td>${priceMP}</td><td>${costPerim.toFixed(0)}</td></tr>`;
     for (let key in globalElements) {
         let data = globalElements[key]; let def = getElementDef(key); let price = prices[key] || 0; let sum = 0; let qtyString = "";
-        if (key === 'pipe') { sum = data.count * price; qtyString = `${data.count} шт.`; }
-        else if (def.type === 'linear') { sum = data.length * price; qtyString = `${data.length.toFixed(2)} м.п.`; }
+        if (key === 'pipe') { sum = data.count * price; qtyString = `${data.count} шт.`; } 
+        else if (def.type === 'linear') { sum = data.length * price; qtyString = `${data.length.toFixed(2)} м.п.`; } 
         else { sum = data.count * price; qtyString = `${data.count} шт.`; }
         totalSum += sum;
         let displayName = def.label || (key === 'pipe' ? 'Обвод трубы' : key);
@@ -544,6 +581,7 @@ function setTool(tool) {
 }
 
 function toggleDiagonals() { showDiagonals = !showDiagonals; document.getElementById("toggleDiags").classList.toggle("btn-toggle-active", showDiagonals); draw(); }
+
 function toggleMeasures() { showMeasures = !showMeasures; document.getElementById("toggleMeasures").classList.toggle("btn-toggle-active", showMeasures); draw(); }
 
 function renameRoom() {
@@ -573,7 +611,7 @@ function getSnappedPos(mx, my, currentEl = null) {
 }
 
 function drawGrid() {
-    const s100 = 100 * MM_TO_PX * scale;
+    const s100 = 100 * MM_TO_PX * scale; 
     if (s100 > 5) {
         for (let x = offsetX % s100; x < svg.clientWidth; x += s100) svg.appendChild(createLine(x, 0, x, svg.clientHeight, "#f1f1f1", 0.5));
         for (let y = offsetY % s100; y < svg.clientHeight; y += s100) svg.appendChild(createLine(0, y, svg.clientWidth, y, "#f1f1f1", 0.5));
@@ -581,31 +619,8 @@ function drawGrid() {
 }
 
 function draw(isExport = false) {
-    // Используем requestAnimationFrame для плавности
-    if (!isExport && pendingDraw) {
-        if (animationFrame) return;
-        animationFrame = requestAnimationFrame(() => {
-            animationFrame = null;
-            pendingDraw = false;
-            performDraw(false);
-        });
-        return;
-    }
-    performDraw(isExport);
-}
-
-function performDraw(isExport) {
-    // Очищаем SVG
-    svg.innerHTML = ""; 
-    
-    // Рисуем сетку только если не в режиме экспорта
-    if (!isExport) drawGrid();
-    
-    // Получаем активную комнату
-    let r = rooms[activeRoom]; 
-    if (!r) return;
-    
-    // Рисуем диагонали
+    svg.innerHTML = ""; if (!isExport) drawGrid();
+    let r = rooms[activeRoom]; if (!r) return;
     if (r.closed && r.points.length > 3 && showDiagonals) {
         for (let i = 0; i < r.points.length; i++) {
             for (let j = i + 2; j < r.points.length; j++) {
@@ -617,67 +632,22 @@ function performDraw(isExport) {
             }
         }
     }
-    
-    // Рисуем пунктирную линию при рисовании
-    if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && currentTool === 'draw') {
-        let last = r.points[r.points.length - 1];
-        let first = r.points[0];
-        let rawX, rawY;
-        
-        if (isMobile && touchState.lastTouchPos) {
-            rawX = pxToMm(touchState.lastTouchPos.x, 'x');
-            rawY = pxToMm(touchState.lastTouchPos.y, 'y');
-        } else {
-            rawX = pxToMm(mousePos.x, 'x');
-            rawY = pxToMm(mousePos.y, 'y');
-        }
-        
-        let sX = snap(rawX, first ? first.x : null);
-        let sY = snap(rawY, first ? first.y : null);
-        
-        if (!mousePos.shift && last) {
-            if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) {
-                sY = last.y;
-            } else {
-                sX = last.x;
-            }
-        }
-        
-        if (first) {
-            isHoveringFirstPoint = (r.points.length >= 3 &&
-                Math.sqrt((mousePos.x - mmToPx(first.x, 'x'))**2 +
-                         (mousePos.y - mmToPx(first.y, 'y'))**2) < 25);
-        }
-        
-        if (first && (Math.abs(sX - first.x) < 2 || Math.abs(sY - first.y) < 2)) {
-            svg.appendChild(createLine(mmToPx(first.x, 'x'), mmToPx(first.y, 'y'),
-                                      mmToPx(sX, 'x'), mmToPx(sY, 'y'), "#bbb", 1, "4,4"));
-        }
-        
-        if (last) {
-            svg.appendChild(createLine(mmToPx(last.x, 'x'), mmToPx(last.y, 'y'),
-                                      mmToPx(sX, 'x'), mmToPx(sY, 'y'),
-                                      isHoveringFirstPoint ? "var(--success)" : "var(--primary)", 2, "6,4"));
-            
-            let dist = Math.round(Math.sqrt((sX - last.x)**2 + (sY - last.y)**2) / 10);
-            if (dist > 0) {
-                renderText(mmToPx((last.x + sX)/2, 'x'),
-                          mmToPx((last.y + sY)/2, 'y') - 10,
-                          dist + " см", "live-label");
-            }
-        }
+    if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && currentTool === 'draw' && !isMobile) {
+        let last = r.points[r.points.length - 1]; let first = r.points[0];
+        let rawX = pxToMm(mousePos.x, 'x'); let rawY = pxToMm(mousePos.y, 'y');
+        let sX = snap(rawX, first.x); let sY = snap(rawY, first.y);
+        if (!mousePos.shift) { if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) sY = last.y; else sX = last.x; }
+        isHoveringFirstPoint = (r.points.length >= 3 && Math.sqrt((mousePos.x - mmToPx(first.x, 'x'))**2 + (mousePos.y - mmToPx(first.y, 'y'))**2) < 25);
+        if (Math.abs(sX - first.x) < 2 || Math.abs(sY - first.y) < 2) { svg.appendChild(createLine(mmToPx(first.x, 'x'), mmToPx(first.y, 'y'), mmToPx(sX, 'x'), mmToPx(sY, 'y'), "#bbb", 1, "4,4")); }
+        svg.appendChild(createLine(mmToPx(last.x, 'x'), mmToPx(last.y, 'y'), mmToPx(sX, 'x'), mmToPx(sY, 'y'), isHoveringFirstPoint ? "var(--success)" : "var(--primary)", 2, "6,4"));
+        let dist = Math.round(Math.sqrt((sX - last.x)**2 + (sY - last.y)**2) / 10);
+        if (dist > 0) renderText(mmToPx((last.x + sX)/2, 'x'), mmToPx((last.y + sY)/2, 'y') - 10, dist + " см", "live-label");
     }
-    
-    // Рисуем стены
     if (r.points.length > 0) {
         let pts = r.points.map(p => `${mmToPx(p.x, 'x')},${mmToPx(p.y, 'y')}`).join(" ");
         let poly = document.createElementNS("http://www.w3.org/2000/svg", r.closed ? "polygon" : "polyline");
-        poly.setAttribute("points", pts); 
-        poly.setAttribute("fill", r.closed ? "rgba(0,188,212,0.05)" : "none");
-        poly.setAttribute("stroke", "#2c3e50"); 
-        poly.setAttribute("stroke-width", 2.5); 
-        svg.appendChild(poly);
-        
+        poly.setAttribute("points", pts); poly.setAttribute("fill", r.closed ? "rgba(0,188,212,0.05)" : "none");
+        poly.setAttribute("stroke", "#2c3e50"); poly.setAttribute("stroke-width", 2.5); svg.appendChild(poly);
         r.points.forEach((p, i) => {
             if (!r.closed && i === r.points.length - 1) return;
             let pNext = r.points[(i + 1) % r.points.length];
@@ -688,8 +658,6 @@ function performDraw(isExport) {
             }
         });
     }
-    
-    // Рисуем элементы
     if (r.elements) {
         r.elements.forEach((el, idx) => {
             let def = getElementDef(el.subtype);
@@ -698,80 +666,32 @@ function performDraw(isExport) {
             const isLinear = def.type === 'linear' || el.type === 'rail';
             if (r.closed && showMeasures) drawElementMeasures(el, r);
             if (isLinear) {
-                let w = el.width || 2000; 
-                let color = el.type === 'rail' ? "#fb8c00" : (el.subtype === 'TRACK' ? "#333" : "var(--light)");
+                let w = el.width || 2000; let color = el.type === 'rail' ? "#fb8c00" : (el.subtype === 'TRACK' ? "#333" : "var(--light)");
                 let line = createLine(mmToPx(el.x - w/2, 'x'), mmToPx(el.y, 'y'), mmToPx(el.x + w/2, 'x'), mmToPx(el.y, 'y'), color, 5);
-                line.setAttribute("stroke-linecap", "round"); 
-                g.appendChild(line);
+                line.setAttribute("stroke-linecap", "round"); g.appendChild(line);
                 let label = renderText(mmToPx(el.x, 'x'), mmToPx(el.y, 'y') - 10, `${w/10} см`, el.type === 'rail' ? "rail-label" : "light-label");
-                if (!isExport) label.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    let nl = prompt("Длина (см):", w/10); 
-                    if (nl && !isNaN(nl)) { 
-                        saveState(); 
-                        el.width = nl * 10; 
-                        draw(); 
-                    } 
-                };
-            } else { 
-                g.appendChild(drawSymbol(el, def)); 
-            }
+                if (!isExport) label.onclick = (e) => { e.stopPropagation(); let nl = prompt("Длина (см):", w/10); if (nl && !isNaN(nl)) { saveState(); el.width = nl * 10; draw(); } };
+            } else { g.appendChild(drawSymbol(el, def)); }
             if (!isExport) {
-                g.onmousedown = (e) => { 
-                    e.stopPropagation(); 
-                    if (e.altKey) { 
-                        saveState(); 
-                        let copy = JSON.parse(JSON.stringify(el)); 
-                        r.elements.push(copy); 
-                        dragElem = copy; 
-                    } else { 
-                        saveState(); 
-                        dragElem = el; 
-                    } 
-                };
-                g.oncontextmenu = (e) => { 
-                    e.preventDefault(); 
-                    e.stopPropagation(); 
-                    saveState(); 
-                    r.elements.splice(idx, 1); 
-                    draw(); 
-                };
+                g.onmousedown = (e) => { e.stopPropagation(); if (e.altKey) { saveState(); let copy = JSON.parse(JSON.stringify(el)); r.elements.push(copy); dragElem = copy; } else { saveState(); dragElem = el; } };
+                g.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.elements.splice(idx, 1); draw(); };
             }
             svg.appendChild(g);
         });
     }
-    
-    // Рисуем точки вершин
     if (!isExport) {
         r.points.forEach((p, i) => {
             let c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            c.setAttribute("cx", mmToPx(p.x, 'x')); 
-            c.setAttribute("cy", mmToPx(p.y, 'y')); 
-            c.setAttribute("r", 5);
-            c.setAttribute("fill", "white"); 
-            c.setAttribute("stroke", "#e74c3c"); 
-            c.setAttribute("stroke-width", 2);
-            c.onmousedown = (e) => { 
-                e.stopPropagation(); 
-                if (currentTool === 'draw') { 
-                    saveState(); 
-                    dragId = p.id; 
-                } 
-            };
-            c.oncontextmenu = (e) => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
-                saveState(); 
-                r.points.splice(i, 1); 
-                if (r.points.length < 3) r.closed = false; 
-                draw(); 
-            };
+            c.setAttribute("cx", mmToPx(p.x, 'x')); c.setAttribute("cy", mmToPx(p.y, 'y')); c.setAttribute("r", 5);
+            c.setAttribute("fill", "white"); c.setAttribute("stroke", "#e74c3c"); c.setAttribute("stroke-width", 2);
+            c.onmousedown = (e) => { e.stopPropagation(); if (currentTool === 'draw') { saveState(); dragId = p.id; } };
+            c.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.points.splice(i, 1); if (r.points.length < 3) r.closed = false; draw(); };
             svg.appendChild(c);
         });
     }
-    
     updateStats();
 }
+
 function drawSymbol(el, def) {
     let cx = mmToPx(el.x, 'x'), cy = mmToPx(el.y, 'y');
     let s = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -813,48 +733,11 @@ function drawElementMeasures(el, room) {
 }
 
 svg.onmousemove = (e) => {
-    const rect = svg.getBoundingClientRect(); 
-    mousePos.x = e.clientX - rect.left; 
-    mousePos.y = e.clientY - rect.top; 
-    mousePos.shift = e.shiftKey;
-    
-    if (isPanning) { 
-        offsetX = e.clientX - startPanX; 
-        offsetY = e.clientY - startPanY; 
-        draw(); 
-        return; 
-    }
-    
-    if (dragId) { 
-        let p = rooms[activeRoom].points.find(pt => pt.id === dragId); 
-        p.x = snap(pxToMm(mousePos.x, 'x')); 
-        p.y = snap(pxToMm(mousePos.y, 'y')); 
-        draw(); 
-        drawSmartGuides(p.x, p.y, dragId); 
-        return; 
-    }
-    
-    if (dragElem) { 
-        let s = getSnappedPos(pxToMm(mousePos.x, 'x'), pxToMm(mousePos.y, 'y'), dragElem); 
-        dragElem.x = s.x; 
-        dragElem.y = s.y; 
-        
-        // Проверяем поворот к стене
-        if (dragElem.type === 'rail' || dragElem.subtype === 'TRACK' || dragElem.subtype === 'LIGHT_LINE') {
-            checkAndRotateToWall(dragElem, rooms[activeRoom]);
-        }
-        
-        draw(); 
-        drawSmartGuides(dragElem.x, dragElem.y, null); 
-        return; 
-    }
-    
-    // Используем throttle для обычного движения мыши
-    const now = Date.now();
-    if (now - lastMoveTime > MOVE_THROTTLE) {
-        draw();
-        lastMoveTime = now;
-    }
+    const rect = svg.getBoundingClientRect(); mousePos.x = e.clientX - rect.left; mousePos.y = e.clientY - rect.top; mousePos.shift = e.shiftKey;
+    if (isPanning) { offsetX = e.clientX - startPanX; offsetY = e.clientY - startPanY; draw(); return; }
+    if (dragId) { let p = rooms[activeRoom].points.find(pt => pt.id === dragId); p.x = snap(pxToMm(mousePos.x, 'x')); p.y = snap(pxToMm(mousePos.y, 'y')); draw(); drawSmartGuides(p.x, p.y, dragId); return; }
+    if (dragElem) { let s = getSnappedPos(pxToMm(mousePos.x, 'x'), pxToMm(mousePos.y, 'y'), dragElem); dragElem.x = s.x; dragElem.y = s.y; draw(); drawSmartGuides(dragElem.x, dragElem.y, null); return; }
+    draw();
 };
 
 svg.onmousedown = (e) => { if (e.target === svg && currentTool === 'draw') { isPanning = true; startPanX = e.clientX - offsetX; startPanY = e.clientY - offsetY; } };
@@ -945,12 +828,13 @@ function renderText(x, y, txt, cls) {
     t.setAttribute("x", x); t.setAttribute("y", y); t.setAttribute("class", cls); t.textContent = txt; svg.appendChild(t); return t;
 }
 
-function addRoom() {
+function addRoom() { 
+    // SAAS Check
     if(currentUser && currentUser.plan === 'free' && rooms.length >= 1) {
         alert("В бесплатном плане доступно только 1 помещение. Перейдите на PRO для безлимита.");
         return;
     }
-    saveState(); rooms.push({ name: "Полотно " + (rooms.length + 1), points: [], id: Date.now(), closed: false, elements: [] }); activeRoom = rooms.length - 1; renderTabs(); draw();
+    saveState(); rooms.push({ name: "Полотно " + (rooms.length + 1), points: [], id: Date.now(), closed: false, elements: [] }); activeRoom = rooms.length - 1; renderTabs(); draw(); 
 }
 
 function removeRoom(idx, e) { e.stopPropagation(); if (confirm("Удалить это помещение?")) { saveState(); rooms.splice(idx, 1); activeRoom = Math.max(0, activeRoom - 1); if (rooms.length === 0) addRoom(); renderTabs(); draw(); } }
@@ -998,243 +882,200 @@ function generateEstimateRows(room) {
     });
     return Object.entries(counts).map(([n, c]) => `<tr><td>${n}</td><td>${c} шт.</td></tr>`).join('');
 }
-
+// --- Мобильные обработчики (pinch, pan, drag) ---
 function initTouchHandlers() {
     const canvas = document.getElementById('canvas');
-    const sideMenu = document.querySelector('.side-menu');
     if (!canvas) return;
-    
-function initMenuScroll() {
-    const sideMenu = document.querySelector('.side-menu');
-    if (sideMenu) {
-        // Принудительно включаем скролл
-        sideMenu.style.overflowY = 'auto';
-        sideMenu.style.webkitOverflowScrolling = 'touch';
-    }
-}
 
-    // Функция для проверки, находится ли касание над меню
-    function isTouchOverSideMenu(touchX, touchY) {
-        if (!sideMenu) return false;
-        const rect = sideMenu.getBoundingClientRect();
-        return touchX >= rect.left && touchX <= rect.right && 
-               touchY >= rect.top && touchY <= rect.bottom;
+    // Вспомогательная функция: расстояние между двумя пальцами
+    function getTouchDistance(touches) {
+        if (touches.length < 2) return 0;
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 
+    // Начало касания
     canvas.addEventListener('touchstart', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
-        
-        const touch = e.touches[0];
-        
-        // Проверяем, не началось ли касание над меню
-        if (isTouchOverSideMenu(touch.clientX, touch.clientY)) {
-            // Если касание над меню - не трогаем событие, пусть меню скроллится
-            return;
-        }
-        
-        e.preventDefault(); // Предотвращаем скролл только если касание на холсте
-    
-    // Сброс состояний
-    touchState.moved = false;
-    touchState.dragId = null;
-    touchState.dragElem = null;
-    touchState.targetLabel = null;
-
-    if (touches.length === 2) {
-        // Для зума - предотвращаем скролл
         e.preventDefault();
-        
-        touchState.isPinching = true;
-        touchState.initialDistance = getTouchDistance(touches);
-        touchState.initialScale = scale;
-        touchState.initialOffsetX = offsetX;
-        touchState.initialOffsetY = offsetY;
+        const touches = e.touches;
 
-        const rect = canvas.getBoundingClientRect();
-        const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
-        const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
-        touchState.pinchCenterMM_X = (centerX - offsetX) / (MM_TO_PX * scale);
-        touchState.pinchCenterMM_Y = (centerY - offsetY) / (MM_TO_PX * scale);
-        return;
-    }
+        // Сброс состояний
+        touchState.moved = false;
+        touchState.dragId = null;
+        touchState.dragElem = null;
+        touchState.targetLabel = null; // для меток длины
 
-    if (touches.length === 1) {
-        const touch = touches[0];
-        const rect = canvas.getBoundingClientRect();
-        const clientX = touch.clientX - rect.left;
-        const clientY = touch.clientY - rect.top;
+        if (touches.length === 2) {
+            // Начало зума
+            touchState.isPinching = true;
+            touchState.initialDistance = getTouchDistance(touches);
+            touchState.initialScale = scale;
+            touchState.initialOffsetX = offsetX;
+            touchState.initialOffsetY = offsetY;
 
-        // Сохраняем позицию
-        if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
-        touchState.lastTouchPos.x = clientX;
-        touchState.lastTouchPos.y = clientY;
-
-        // Проверка на метку длины
-        const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (elemUnderTouch && elemUnderTouch.classList && elemUnderTouch.classList.contains('length-label')) {
-            e.preventDefault(); // Предотвращаем скролл при клике на метку
-            touchState.targetLabel = elemUnderTouch;
-            touchState.touchStartX = clientX;
-            touchState.touchStartY = clientY;
+            const rect = canvas.getBoundingClientRect();
+            const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
+            const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
+            touchState.pinchCenterX = centerX;
+            touchState.pinchCenterY = centerY;
+            // Мировые координаты центра в начале жеста
+            touchState.pinchCenterMM_X = (centerX - offsetX) / (MM_TO_PX * scale);
+            touchState.pinchCenterMM_Y = (centerY - offsetY) / (MM_TO_PX * scale);
             return;
         }
 
-        const r = rooms[activeRoom];
-        if (r) {
-            // Проверка на точку (вершину)
-            for (let pt of r.points) {
-                const cx = mmToPx(pt.x, 'x');
-                const cy = mmToPx(pt.y, 'y');
-                if (Math.hypot(clientX - cx, clientY - cy) < 10) {
-                    e.preventDefault(); // Предотвращаем скролл при захвате точки
-                    touchState.dragId = pt.id;
-                    touchState.touchStartX = clientX;
-                    touchState.touchStartY = clientY;
-                    saveState();
-                    return;
-                }
+        if (touches.length === 1) {
+            const touch = touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const clientX = touch.clientX - rect.left;
+            const clientY = touch.clientY - rect.top;
+
+            // Проверка: не попали ли мы в текстовую метку длины стены
+            const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (elemUnderTouch && elemUnderTouch.classList && elemUnderTouch.classList.contains('length-label')) {
+                touchState.targetLabel = elemUnderTouch;
+                touchState.touchStartX = clientX;
+                touchState.touchStartY = clientY;
+                return; // Не начинаем pan
             }
-            // Проверка на элемент
-            if (r.elements) {
-                for (let el of r.elements) {
-                    const cx = mmToPx(el.x, 'x');
-                    const cy = mmToPx(el.y, 'y');
-                    if (Math.hypot(clientX - cx, clientY - cy) < 20) {
-                        e.preventDefault(); // Предотвращаем скролл при захвате элемента
-                        touchState.dragElem = el;
+
+            const r = rooms[activeRoom];
+            if (r) {
+                // Проверка на точку (вершину)
+                for (let pt of r.points) {
+                    const cx = mmToPx(pt.x, 'x');
+                    const cy = mmToPx(pt.y, 'y');
+                    if (Math.hypot(clientX - cx, clientY - cy) < 10) {
+                        touchState.dragId = pt.id;
                         touchState.touchStartX = clientX;
                         touchState.touchStartY = clientY;
                         saveState();
                         return;
                     }
                 }
+                // Проверка на элемент (светильник, трубу и т.д.)
+                if (r.elements) {
+                    for (let el of r.elements) {
+                        const cx = mmToPx(el.x, 'x');
+                        const cy = mmToPx(el.y, 'y');
+                        if (Math.hypot(clientX - cx, clientY - cy) < 20) {
+                            touchState.dragElem = el;
+                            touchState.touchStartX = clientX;
+                            touchState.touchStartY = clientY;
+                            saveState();
+                            return;
+                        }
+                    }
+                }
             }
+            // Ничего не нашли — начинаем pan
+            touchState.isPanning = true;
+            touchState.touchStartX = clientX;
+            touchState.touchStartY = clientY;
+            touchState.lastPanX = offsetX;
+            touchState.lastPanY = offsetY;
         }
-        
-        // Если не нашли ни точки ни элемента - начинаем pan
-        // Для pan тоже предотвращаем скролл
-        e.preventDefault();
-        touchState.isPanning = true;
-        touchState.touchStartX = clientX;
-        touchState.touchStartY = clientY;
-        touchState.lastPanX = offsetX;
-        touchState.lastPanY = offsetY;
-    }
-}, { passive: false });
+    }, { passive: false });
 
-     canvas.addEventListener('touchmove', (e) => {
+    // Движение пальца
+    canvas.addEventListener('touchmove', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
-        
-        const touch = e.touches[0];
-        
-        // Если мы не в режиме перетаскивания и касание над меню - пропускаем
-        if (!touchState.dragId && !touchState.dragElem && !touchState.isPanning && 
-            isTouchOverSideMenu(touch.clientX, touch.clientY)) {
+        e.preventDefault();
+
+        const touches = e.touches;
+        const rect = canvas.getBoundingClientRect();
+
+        // --- Два пальца: зум ---
+        if (touches.length === 2 && touchState.isPinching) {
+            const currentDistance = getTouchDistance(touches);
+            if (currentDistance === 0) return;
+
+            const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
+            scale = newScale;
+
+            // Текущий центр между пальцами (в координатах SVG)
+            const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
+            const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
+
+            // Новые offset: точка, которая была под центром в начале, остаётся под центром
+            offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
+            offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
+
+            draw();
             return;
         }
-    
 
-    // --- Два пальца: зум ---
-    if (touches.length === 2 && touchState.isPinching) {
-        e.preventDefault(); // Предотвращаем скролл при зуме
-        const currentDistance = getTouchDistance(touches);
-        if (currentDistance === 0) return;
+        // --- Один палец ---
+        if (touches.length === 1) {
+            const touch = touches[0];
+            const clientX = touch.clientX - rect.left;
+            const clientY = touch.clientY - rect.top;
 
-        const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
-        scale = newScale;
-
-        const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
-        const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
-
-        offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
-        offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
-
-        draw();
-        return;
-    }
-
-    // --- Один палец ---
-    if (touches.length === 1) {
-        const touch = touches[0];
-        const clientX = touch.clientX - rect.left;
-        const clientY = touch.clientY - rect.top;
-        
-        // Сохраняем позицию
-        if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
-        touchState.lastTouchPos.x = clientX;
-        touchState.lastTouchPos.y = clientY;
-
-        // Проверяем, двигаем ли мы что-то
-        const isDragging = touchState.dragId || touchState.dragElem || touchState.isPanning;
-        
-        if (isDragging) {
-            e.preventDefault(); // Предотвращаем скролл только если действительно двигаем
-            
+            // Порог движения
             if (!touchState.moved) {
                 const dx = clientX - touchState.touchStartX;
                 const dy = clientY - touchState.touchStartY;
-                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                if (Math.hypot(dx, dy) > touchState.MOVE_THRESHOLD) {
                     touchState.moved = true;
                 } else {
-                    return;
+                    return; // ещё не сдвинули
                 }
             }
-        }
 
-        // Перетаскивание точки
-        if (touchState.dragId) {
-            const r = rooms[activeRoom];
-            const point = r.points.find(p => p.id === touchState.dragId);
-            if (point) {
+            // Перетаскивание точки
+            if (touchState.dragId) {
+                const r = rooms[activeRoom];
+                const point = r.points.find(p => p.id === touchState.dragId);
+                if (point) {
+                    const mmX = pxToMm(clientX, 'x');
+                    const mmY = pxToMm(clientY, 'y');
+                    point.x = mmX;
+                    point.y = mmY;
+                    draw();
+                }
+                return;
+            }
+
+            // Перетаскивание элемента
+            if (touchState.dragElem) {
+                const r = rooms[activeRoom];
+                const el = touchState.dragElem;
                 const mmX = pxToMm(clientX, 'x');
                 const mmY = pxToMm(clientY, 'y');
-                point.x = snap(mmX, null, GRID_SNAP_MM);
-                point.y = snap(mmY, null, GRID_SNAP_MM);
+                el.x = mmX;
+                el.y = mmY;
+                draw();
+                return;
+            }
+
+            // Pan
+            if (touchState.isPanning) {
+                const dx = clientX - touchState.touchStartX;
+                const dy = clientY - touchState.touchStartY;
+                offsetX = touchState.lastPanX + dx;
+                offsetY = touchState.lastPanY + dy;
                 draw();
             }
-            return;
         }
+    }, { passive: false });
 
-        // Перетаскивание элемента
-        if (touchState.dragElem) {
-            const r = rooms[activeRoom];
-            const el = touchState.dragElem;
-            
-            el.x = pxToMm(clientX, 'x');
-            el.y = pxToMm(clientY, 'y');
-            
-            if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
-                checkAndRotateToWall(el, r);
-            }
-            
-            draw();
-            return;
-        }
-
-        // Pan
-        if (touchState.isPanning) {
-            const dx = clientX - touchState.touchStartX;
-            const dy = clientY - touchState.touchStartY;
-            offsetX = touchState.lastPanX + dx;
-            offsetY = touchState.lastPanY + dy;
-            draw();
-            return;
-        }
-    }
-}, { passive: false });
-
+    // Конец касания
     canvas.addEventListener('touchend', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
 
         if (!touchState.moved && !touchState.isPinching && !touchState.dragId && !touchState.dragElem) {
             if (touchState.targetLabel) {
+                // Эмулируем клик по метке длины
                 const clickEvent = new MouseEvent('click', {
                     clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
                     clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
                 });
                 touchState.targetLabel.dispatchEvent(clickEvent);
             } else {
+                // Эмулируем клик по canvas (добавление точки)
                 const clickEvent = new MouseEvent('click', {
                     clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
                     clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
@@ -1243,6 +1084,7 @@ function initMenuScroll() {
             }
         }
 
+        // Сброс состояний
         touchState.isPinching = false;
         touchState.isPanning = false;
         touchState.dragId = null;
@@ -1251,6 +1093,7 @@ function initMenuScroll() {
         touchState.moved = false;
     }, { passive: false });
 
+    // Отмена касания
     canvas.addEventListener('touchcancel', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
@@ -1262,68 +1105,7 @@ function initMenuScroll() {
         touchState.moved = false;
     }, { passive: false });
 }
-
-function checkAndRotateToWall(element, room) {
-    if (!room || !room.points || room.points.length < 2) return false;
-    
-    let bestWall = null;
-    let minDistance = Infinity;
-    let bestAngle = 0;
-    
-    // Проверяем расстояние до всех стен
-    for (let i = 0; i < room.points.length; i++) {
-        let p1 = room.points[i];
-        let p2 = room.points[(i + 1) % room.points.length];
-        
-        // Вычисляем расстояние до стены
-        let distance = distanceToSegment(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
-        
-        // Если элемент близко к стене (менее 50мм)
-        if (distance < 50 && distance < minDistance) {
-            minDistance = distance;
-            bestWall = { p1, p2 };
-            
-            // Вычисляем угол стены
-            let dx = p2.x - p1.x;
-            let dy = p2.y - p1.y;
-            bestAngle = Math.atan2(dy, dx) * 180 / Math.PI;
-        }
-    }
-    
-    // Если нашли подходящую стену - МГНОВЕННЫЙ ПОВОРОТ
-    if (bestWall && minDistance < 50) {
-        element.rotation = bestAngle;
-        return true;
-    }
-    
-    return false;
-}
-
-// Улучшенная функция расстояния до отрезка
-function distanceToSegment(px, py, x1, y1, x2, y2) {
-    const A = px - x1;
-    const B = py - y1;
-    const C = x2 - x1;
-    const D = y2 - y1;
-    
-    const dot = A * C + B * D;
-    const len_sq = C * C + D * D;
-    
-    if (len_sq === 0) return Math.sqrt(A * A + B * B);
-    
-    let t = dot / len_sq;
-    
-    if (t < 0) t = 0;
-    if (t > 1) t = 1;
-    
-    const xx = x1 + t * C;
-    const yy = y1 + t * D;
-    
-    const dx = px - xx;
-    const dy = py - yy;
-    
-    return Math.sqrt(dx * dx + dy * dy);
-}
+// --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
     if (!currentUser || !currentUser.uid) {
@@ -1336,15 +1118,18 @@ function saveProject() {
     const projectName = prompt("Введите название проекта:", `Проект от ${new Date().toLocaleDateString()}`);
     if (!projectName || projectName.trim() === "") return;
 
+    // Копируем данные комнат (rooms - это глобальная переменная твоего приложения)
+    // Важно: мы не можем сохранить функции или сложные объекты, поэтому делаем копию
     const projectData = JSON.parse(JSON.stringify(rooms));
 
     const project = {
         name: projectName.trim(),
-        date: new Date().toISOString(),
+        date: new Date().toISOString(), // Сохраняем в международном формате
         dateLocale: new Date().toLocaleString('ru-RU'),
         data: projectData
     };
 
+    // Добавляем проект в подколлекцию 'projects' для данного пользователя
     db.collection('users').doc(currentUser.uid).collection('projects').add(project)
         .then((docRef) => {
             console.log("✅ Проект сохранен с ID:", docRef.id);
@@ -1366,13 +1151,15 @@ function openProjectsModal() {
     const container = document.getElementById('projectsListContainer');
     container.innerHTML = '<div style="text-align:center; padding:20px;">⏳ Загрузка проектов...</div>';
 
+    // Показываем модалку сразу, чтобы был виден процесс загрузки
     document.getElementById('projectsModal').style.display = 'flex';
 
+    // Запрашиваем проекты пользователя из Firestore, сортируем по дате (новые сверху)
     db.collection('users').doc(currentUser.uid).collection('projects')
         .orderBy('date', 'desc')
         .get()
         .then((querySnapshot) => {
-            container.innerHTML = "";
+            container.innerHTML = ""; // Очищаем контейнер
 
             if (querySnapshot.empty) {
                 container.innerHTML = `
@@ -1408,62 +1195,6 @@ function openProjectsModal() {
             container.innerHTML = `<div style="color: red; padding: 20px;">Ошибка загрузки: ${error.message}</div>`;
         });
 }
-
-function fitRoomToScreen() {
-    if (!rooms || rooms.length === 0 || !rooms[activeRoom]) return;
-    
-    const room = rooms[activeRoom];
-    if (!room.points || room.points.length === 0) return;
-    
-    let minX = Math.min(...room.points.map(p => p.x));
-    let maxX = Math.max(...room.points.map(p => p.x));
-    let minY = Math.min(...room.points.map(p => p.y));
-    let maxY = Math.max(...room.points.map(p => p.y));
-    
-    minX -= 500;
-    maxX += 500;
-    minY -= 500;
-    maxY += 500;
-    
-    const roomWidth = maxX - minX;
-    const roomHeight = maxY - minY;
-    
-    const screenWidth = window.innerWidth * 0.8;
-    const screenHeight = window.innerHeight * 0.6;
-    
-    const scaleX = screenWidth / (roomWidth * MM_TO_PX);
-    const scaleY = screenHeight / (roomHeight * MM_TO_PX);
-    let newScale = Math.min(scaleX, scaleY, 0.5);
-    
-    scale = newScale;
-    
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    
-    offsetX = screenWidth / 2 - centerX * MM_TO_PX * scale;
-    offsetY = screenHeight / 2 - centerY * MM_TO_PX * scale;
-    
-    console.log("📱 Комната отмасштабирована для мобильного экрана");
-}
-
-function initMenuScroll() {
-    const sideMenu = document.querySelector('.side-menu');
-    if (sideMenu) {
-        // Принудительно включаем скролл
-        sideMenu.style.overflowY = 'auto';
-        sideMenu.style.maxHeight = '40vh';
-        sideMenu.style.webkitOverflowScrolling = 'touch';
-        
-        // Добавляем обработчик для предотвращения всплытия событий
-        sideMenu.addEventListener('touchstart', (e) => {
-            e.stopPropagation(); // Останавливаем всплытие события к canvas
-        }, { passive: true });
-        
-        sideMenu.addEventListener('touchmove', (e) => {
-            e.stopPropagation(); // Останавливаем всплытие
-        }, { passive: true });
-    }
-}
 function loadProject(projectId) {
     if (!currentUser || !currentUser.uid || !db) return;
 
@@ -1472,15 +1203,12 @@ function loadProject(projectId) {
             .then((doc) => {
                 if (doc.exists) {
                     const project = doc.data();
+                    // Восстанавливаем данные комнат
                     rooms = JSON.parse(JSON.stringify(project.data));
-                    activeRoom = 0;
+                    activeRoom = 0; // Активируем первую комнату
 
+                    // Вызываем функции отрисовки
                     if (typeof renderTabs === 'function') renderTabs();
-                    
-                    if (isMobile) {
-                        fitRoomToScreen();
-                    }
-                    
                     if (typeof draw === 'function') draw();
 
                     closeProjectsModal();
@@ -1503,7 +1231,8 @@ function deleteProject(projectId) {
         db.collection('users').doc(currentUser.uid).collection('projects').doc(projectId).delete()
             .then(() => {
                 console.log("Проект удален");
-                openProjectsModal();
+                // Обновляем список проектов в модальном окне
+                openProjectsModal(); // Переоткрываем для обновления
             })
             .catch((error) => {
                 console.error("Ошибка удаления:", error);
@@ -1512,6 +1241,7 @@ function deleteProject(projectId) {
     }
 }
 
+// Простая защита от XSS (когда пользователь ввел бы скрипт в название проекта)
 function escapeHtml(unsafe) {
     if (!unsafe) return '';
     return unsafe
@@ -1526,17 +1256,131 @@ function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
 
+// Закрытие модалки по клику на фон
 window.onclick = function(event) {
     const modal = document.getElementById('projectsModal');
     if (event.target == modal) {
         closeProjectsModal();
     }
-};
+}
+// --- МОБИЛЬНОЕ МЕНЮ (добавить в конец файла) ---
 
+// Функции для управления мобильным интерфейсом
+function initMobileInterface() {
+    if (!isMobile) return;
+    
+    console.log("📱 Инициализация мобильного интерфейса");
+    
+    // Создаем кнопку меню, если её нет
+    if (!document.querySelector('.mobile-menu-btn')) {
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'mobile-menu-btn';
+        menuBtn.innerHTML = '⋯';
+        menuBtn.setAttribute('aria-label', 'Меню');
+        document.body.appendChild(menuBtn);
+        
+        // Создаем оверлей
+        const overlay = document.createElement('div');
+        overlay.className = 'mobile-overlay';
+        document.body.appendChild(overlay);
+        
+        // Создаем кнопку закрытия в боковом меню
+        const sideMenu = document.querySelector('.side-menu');
+        const closeBtn = document.createElement('div');
+        closeBtn.className = 'side-menu-close';
+        closeBtn.innerHTML = '<button>✕</button>';
+        sideMenu.insertBefore(closeBtn, sideMenu.firstChild);
+        
+        // Обработчики
+        menuBtn.addEventListener('click', toggleMobileMenu);
+        overlay.addEventListener('click', hideMobileMenu);
+        closeBtn.querySelector('button').addEventListener('click', hideMobileMenu);
+        
+        // При клике вне меню - закрываем
+        document.addEventListener('click', (e) => {
+            if (sideMenu.classList.contains('visible') && 
+                !sideMenu.contains(e.target) && 
+                !menuBtn.contains(e.target)) {
+                hideMobileMenu();
+            }
+        });
+    }
+    
+    // Скрываем шапку при скролле/тач-движении на холсте
+    let lastScrollTop = 0;
+    const header = document.querySelector('.header');
+    const canvas = document.getElementById('canvas');
+    
+    canvas.addEventListener('touchstart', () => {
+        header.classList.remove('visible');
+    });
+    
+    // Показываем шапку при клике на кнопку меню
+    // (обработчик уже есть выше)
+}
 
+function toggleMobileMenu() {
+    const sideMenu = document.querySelector('.side-menu');
+    const overlay = document.querySelector('.mobile-overlay');
+    const menuBtn = document.querySelector('.mobile-menu-btn');
+    
+    sideMenu.classList.toggle('visible');
+    overlay.classList.toggle('visible');
+    menuBtn.classList.toggle('active');
+    
+    // Блокируем прокрутку body
+    document.body.style.overflow = sideMenu.classList.contains('visible') ? 'hidden' : '';
+}
 
+function hideMobileMenu() {
+    const sideMenu = document.querySelector('.side-menu');
+    const overlay = document.querySelector('.mobile-overlay');
+    const menuBtn = document.querySelector('.mobile-menu-btn');
+    
+    sideMenu.classList.remove('visible');
+    overlay.classList.remove('visible');
+    menuBtn.classList.remove('active');
+    document.body.style.overflow = '';
+}
 
+// Показать шапку временно (например, при необходимости)
+function showHeaderTemporarily() {
+    if (!isMobile) return;
+    
+    const header = document.querySelector('.header');
+    header.classList.add('visible');
+    
+    // Автоматически скрыть через 3 секунды
+    clearTimeout(window.headerTimeout);
+    window.headerTimeout = setTimeout(() => {
+        if (!document.querySelector('.side-menu.visible')) {
+            header.classList.remove('visible');
+        }
+    }, 3000);
+}
 
+// Вызвать при загрузке
+if (isMobile) {
+    // Немного задержим инициализацию, чтобы DOM точно загрузился
+    setTimeout(initMobileInterface, 100);
+}
 
+// Добавим возможность показа шапки свайпом сверху
+let touchStartY = 0;
+document.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+    if (!isMobile) return;
+    
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchY - touchStartY;
+    
+    // Если свайп вниз от верхнего края (первые 30px)
+    if (touchStartY < 30 && deltaY > 50) {
+        document.querySelector('.header').classList.add('visible');
+    }
+}, { passive: true });
 
 
