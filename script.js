@@ -702,12 +702,22 @@ function saveState() {
 }
 
 function undo() {
+    // ✅ Добавляем защиту от множественных вызовов
+    if (window.isUndoing) return;
+    window.isUndoing = true;
+    
     const prevState = history.undo();
     if (prevState) {
         rooms = prevState;
         if (activeRoom >= rooms.length) activeRoom = Math.max(0, rooms.length - 1);
-        renderTabs(); requestDraw();
+        renderTabs(); 
+        requestDraw();
     }
+    
+    // Сбрасываем флаг через небольшую задержку
+    setTimeout(() => {
+        window.isUndoing = false;
+    }, 300);
 }
 
 // Добавьте новую функцию для возврата действия (Ctrl+Y или Ctrl+Shift+Z)
@@ -1061,6 +1071,50 @@ function initTouchHandlers() {
     canvas.addEventListener('touchstart', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
+        // Конец касания
+canvas.addEventListener('touchend', (e) => {
+    if (document.getElementById('auth-overlay').style.display !== 'none') return;
+    e.preventDefault();
+
+    // ✅ Добавьте эту проверку в начало
+    // Если было перетаскивание - не обрабатываем как клик
+    if (touchState.moved) {
+        // Сбрасываем состояния и выходим
+        touchState.isPinching = false;
+        touchState.isPanning = false;
+        touchState.dragId = null;
+        touchState.dragElem = null;
+        touchState.targetLabel = null;
+        touchState.moved = false;
+        return;
+    }
+
+    if (!touchState.moved && !touchState.isPinching && !touchState.dragId && !touchState.dragElem) {
+        if (touchState.targetLabel) {
+            // Эмулируем клик по метке длины
+            const clickEvent = new MouseEvent('click', {
+                clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
+                clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
+            });
+            touchState.targetLabel.dispatchEvent(clickEvent);
+        } else {
+            // Эмулируем клик по canvas (добавление точки)
+            const clickEvent = new MouseEvent('click', {
+                clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
+                clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
+            });
+            canvas.dispatchEvent(clickEvent);
+        }
+    }
+
+    // Сброс состояний
+    touchState.isPinching = false;
+    touchState.isPanning = false;
+    touchState.dragId = null;
+    touchState.dragElem = null;
+    touchState.targetLabel = null;
+    touchState.moved = false;
+}, { passive: false });
         const touches = e.touches;
 
         // Сброс состояний
@@ -1471,7 +1525,36 @@ document.addEventListener('keydown', (e) => {
             case 4: setTool('rail'); break;
         }
     }
+// --- ЗАЩИТА ОТ ЗАВИСАНИЯ НА МОБИЛЬНЫХ ---
+document.addEventListener('touchstart', (e) => {
+    // Если нажали на кнопку, сбрасываем возможные зависшие состояния
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+        // Сбрасываем все состояния перетаскивания
+        dragId = null;
+        dragElem = null;
+        isPanning = false;
+        
+        // Сбрасываем touchState
+        touchState.isPanning = false;
+        touchState.dragId = null;
+        touchState.dragElem = null;
+    }
+}, { passive: true });
+
+// Глобальный обработчик для разблокировки интерфейса
+document.addEventListener('touchcancel', () => {
+    dragId = null;
+    dragElem = null;
+    isPanning = false;
+    
+    touchState.isPinching = false;
+    touchState.isPanning = false;
+    touchState.dragId = null;
+    touchState.dragElem = null;
+    touchState.moved = false;
 });
+});
+
 
 
 
