@@ -194,9 +194,9 @@
 <div id="print-container"></div>
 
 <!-- Firebase SDKs (правильные ссылки на интернет) -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
 <script>
   // Твоя конфигурация Firebase
@@ -213,6 +213,10 @@
   // Инициализация Firebase
   firebase.initializeApp(firebaseConfig);
   console.log("✅ Firebase загружен с проектом:", firebaseConfig.projectId);
+  
+  // Проверка, что все сервисы доступны
+  console.log("🔥 Firebase Auth доступен:", !!firebase.auth);
+  console.log("🔥 Firebase Firestore доступен:", !!firebase.firestore);
 </script>
 
 <!-- Твой основной скрипт -->
@@ -232,6 +236,7 @@
 </body>
 
 </html>
+
 
 
 
