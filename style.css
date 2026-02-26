@@ -262,6 +262,24 @@
             transform: none;
         }
     }
+/* Исправление для мобильных кнопок */
+@media (max-width: 768px) {
+    button:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+    }
+    
+    /* Сбрасываем состояние после нажатия */
+    button:focus {
+        outline: none;
+    }
+    
+    /* Предотвращаем двойные нажатия */
+    button {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+}
 
 /* Кастомный скроллбар для списка */
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
@@ -290,5 +308,6 @@
     cursor: wait;
     pointer-events: none;
 }
+
 
 
