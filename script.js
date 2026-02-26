@@ -476,8 +476,7 @@ const MM_TO_PX = 3.78;
 let scale = 0.18;
 let offsetX = 100;
 let offsetY = 100;
-let rooms = [];
-let activeRoom = 0;
+
 let dragId = null;
 let dragElem = null;
 let isPanning = false;
@@ -487,6 +486,8 @@ let isHoveringFirstPoint = false;
 let currentTool = 'draw';
 let showDiagonals = true;
 let showMeasures = true;
+let rooms = [];
+let activeRoom = 0;
 // --- УМНАЯ ИСТОРИЯ ДЕЙСТВИЙ ---
 class HistoryManager {
     constructor(maxSize = 50) {
@@ -550,7 +551,7 @@ let touchState = {
 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 function mirrorRoom() {
-    saveState();
+    ;
     let r = rooms[activeRoom];
     if (!r || r.points.length === 0) return;
     let minX = Math.min(...r.points.map(p => p.x));
@@ -697,8 +698,7 @@ function exportEstimateToExcel() {
     link.click();
 }
 function saveState() {
-    if (history.length > 50) history.shift();
-    history.push(JSON.stringify(rooms));
+    history.push(rooms);
 }
 
 function undo() {
@@ -1012,6 +1012,11 @@ function addRoom() {
 function removeRoom(idx, e) { e.stopPropagation(); if (confirm("Удалить это помещение?")) { saveState(); rooms.splice(idx, 1); activeRoom = Math.max(0, activeRoom - 1); if (rooms.length === 0) addRoom(); renderTabs(); requestDraw(); } }
 
 function renderTabs() {
+    // Добавьте эту проверку
+    if (!rooms || !Array.isArray(rooms)) {
+        console.error("rooms не является массивом!", rooms);
+        rooms = []; // Сбрасываем в пустой массив
+    }
     tabs.innerHTML = "";
     rooms.forEach((r, i) => {
         let t = document.createElement("div"); t.className = "tab" + (i === activeRoom ? " active" : "");
@@ -1523,6 +1528,7 @@ document.addEventListener('touchcancel', () => {
     touchState.moved = false;
 });
 });
+
 
 
 
