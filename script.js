@@ -1377,7 +1377,7 @@ if (touches.length === 1) {
         touchState.isLongPress = false;
     }, { passive: false });
 
-   // Отмена касания
+  // Отмена касания
     canvas.addEventListener('touchcancel', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
@@ -1610,5 +1610,6 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
+
 
 
