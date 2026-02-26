@@ -632,16 +632,66 @@ function draw(isExport = false) {
             }
         }
     }
-    if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && currentTool === 'draw' && !isMobile) {
-        let last = r.points[r.points.length - 1]; let first = r.points[0];
-        let rawX = pxToMm(mousePos.x, 'x'); let rawY = pxToMm(mousePos.y, 'y');
-        let sX = snap(rawX, first.x); let sY = snap(rawY, first.y);
-        if (!mousePos.shift) { if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) sY = last.y; else sX = last.x; }
-        isHoveringFirstPoint = (r.points.length >= 3 && Math.sqrt((mousePos.x - mmToPx(first.x, 'x'))**2 + (mousePos.y - mmToPx(first.y, 'y'))**2) < 25);
-        if (Math.abs(sX - first.x) < 2 || Math.abs(sY - first.y) < 2) { svg.appendChild(createLine(mmToPx(first.x, 'x'), mmToPx(first.y, 'y'), mmToPx(sX, 'x'), mmToPx(sY, 'y'), "#bbb", 1, "4,4")); }
-        svg.appendChild(createLine(mmToPx(last.x, 'x'), mmToPx(last.y, 'y'), mmToPx(sX, 'x'), mmToPx(sY, 'y'), isHoveringFirstPoint ? "var(--success)" : "var(--primary)", 2, "6,4"));
-        let dist = Math.round(Math.sqrt((sX - last.x)**2 + (sY - last.y)**2) / 10);
-        if (dist > 0) renderText(mmToPx((last.x + sX)/2, 'x'), mmToPx((last.y + sY)/2, 'y') - 10, dist + " см", "live-label");
+    // Оптимизированная отрисовка пунктирной линии
+if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && currentTool === 'draw') {
+    // Используем requestAnimationFrame для плавности на мобильных
+    if (typeof window.lastDrawTime === 'undefined') window.lastDrawTime = 0;
+    const now = Date.now();
+    
+    // Ограничиваем частоту обновления до 60fps (примерно каждые 16ms)
+    if (now - window.lastDrawTime > 16 || isMobile) {
+        let last = r.points[r.points.length - 1]; 
+        let first = r.points[0];
+        let rawX, rawY;
+        
+        if (isMobile && touchState.lastTouchPos) {
+            // Для мобильных используем сохраненную позицию касания
+            rawX = pxToMm(touchState.lastTouchPos.x, 'x');
+            rawY = pxToMm(touchState.lastTouchPos.y, 'y');
+        } else {
+            rawX = pxToMm(mousePos.x, 'x');
+            rawY = pxToMm(mousePos.y, 'y');
+        }
+        
+        let sX = snap(rawX, first ? first.x : null);
+        let sY = snap(rawY, first ? first.y : null);
+        
+        if (!mousePos.shift && last) {
+            if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) {
+                sY = last.y;
+            } else {
+                sX = last.x;
+            }
+        }
+        
+        if (first) {
+            isHoveringFirstPoint = (r.points.length >= 3 && 
+                Math.sqrt((mousePos.x - mmToPx(first.x, 'x'))**2 + 
+                         (mousePos.y - mmToPx(first.y, 'y'))**2) < 25);
+        }
+        
+        // Рисуем линии
+        if (first && (Math.abs(sX - first.x) < 2 || Math.abs(sY - first.y) < 2)) {
+            svg.appendChild(createLine(mmToPx(first.x, 'x'), mmToPx(first.y, 'y'), 
+                                      mmToPx(sX, 'x'), mmToPx(sY, 'y'), "#bbb", 1, "4,4"));
+        }
+        
+        if (last) {
+            svg.appendChild(createLine(mmToPx(last.x, 'x'), mmToPx(last.y, 'y'), 
+                                      mmToPx(sX, 'x'), mmToPx(sY, 'y'), 
+                                      isHoveringFirstPoint ? "var(--success)" : "var(--primary)", 2, "6,4"));
+            
+            let dist = Math.round(Math.sqrt((sX - last.x)**2 + (sY - last.y)**2) / 10);
+            if (dist > 0) {
+                renderText(mmToPx((last.x + sX)/2, 'x'), 
+                          mmToPx((last.y + sY)/2, 'y') - 10, 
+                          dist + " см", "live-label");
+            }
+        }
+        
+        window.lastDrawTime = now;
+    }
+}
     }
     if (r.points.length > 0) {
         let pts = r.points.map(p => `${mmToPx(p.x, 'x')},${mmToPx(p.y, 'y')}`).join(" ");
@@ -932,6 +982,19 @@ function initTouchHandlers() {
             const clientX = touch.clientX - rect.left;
             const clientY = touch.clientY - rect.top;
 
+            // В блоке touchstart для одного пальца, после clientX/clientY добавь:
+if (touches.length === 1) {
+    const touch = touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const clientX = touch.clientX - rect.left;
+    const clientY = touch.clientY - rect.top;
+    
+    // СОХРАНЯЕМ ПОЗИЦИЮ ДЛЯ ПЛАВНОЙ ОТРИСОВКИ
+    if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
+    touchState.lastTouchPos.x = clientX;
+    touchState.lastTouchPos.y = clientY;
+    
+
             // Проверка: не попали ли мы в текстовую метку длины стены
             const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
             if (elemUnderTouch && elemUnderTouch.classList && elemUnderTouch.classList.contains('length-label')) {
@@ -1013,6 +1076,20 @@ function initTouchHandlers() {
             const clientX = touch.clientX - rect.left;
             const clientY = touch.clientY - rect.top;
 
+            // В начале блока touchmove, после получения clientX/clientY:
+if (touches.length === 1) {
+    const touch = touches[0];
+    const clientX = touch.clientX - rect.left;
+    const clientY = touch.clientY - rect.top;
+    
+    // ОБНОВЛЯЕМ ПОЗИЦИЮ ДЛЯ ПЛАВНОЙ ОТРИСОВКИ
+    if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
+    touchState.lastTouchPos.x = clientX;
+    touchState.lastTouchPos.y = clientY;
+    
+    // ... остальной код
+}
+
             // Порог движения
             if (!touchState.moved) {
                 const dx = clientX - touchState.touchStartX;
@@ -1024,19 +1101,38 @@ function initTouchHandlers() {
                 }
             }
 
-            // Перетаскивание точки
-            if (touchState.dragId) {
-                const r = rooms[activeRoom];
-                const point = r.points.find(p => p.id === touchState.dragId);
-                if (point) {
-                    const mmX = pxToMm(clientX, 'x');
-                    const mmY = pxToMm(clientY, 'y');
-                    point.x = mmX;
-                    point.y = mmY;
-                    draw();
-                }
-                return;
-            }
+            // Перетаскивание элемента - ИСПРАВЛЕНО для мобильных
+if (touchState.dragElem) {
+    const r = rooms[activeRoom];
+    const el = touchState.dragElem;
+    
+    // Получаем координаты в миллиметрах
+    let mmX = pxToMm(clientX, 'x');
+    let mmY = pxToMm(clientY, 'y');
+    
+    // Привязка к сетке для более точного позиционирования
+    mmX = snap(mmX, null, LIGHT_SNAP_MM);
+    mmY = snap(mmY, null, LIGHT_SNAP_MM);
+    
+    // Плавное обновление позиции
+    el.x = mmX;
+    el.y = mmY;
+    
+    // Проверяем, не находится ли элемент рядом со стеной для автоматического поворота
+    if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
+        checkAndRotateToWall(el, r);
+    }
+    
+    // Отрисовываем с накоплением для плавности
+    if (!touchState.pendingDraw) {
+        touchState.pendingDraw = true;
+        requestAnimationFrame(() => {
+            draw();
+            touchState.pendingDraw = false;
+        });
+    }
+    return;
+}
 
             // Перетаскивание элемента
             if (touchState.dragElem) {
@@ -1104,6 +1200,69 @@ function initTouchHandlers() {
         touchState.targetLabel = null;
         touchState.moved = false;
     }, { passive: false });
+}
+// Новая функция: проверяет и поворачивает линейный элемент параллельно ближайшей стене
+function checkAndRotateToWall(element, room) {
+    if (!room || !room.points || room.points.length < 2) return;
+    
+    let closestWall = null;
+    let minDistance = Infinity;
+    
+    // Ищем ближайшую стену
+    for (let i = 0; i < room.points.length; i++) {
+        let p1 = room.points[i];
+        let p2 = room.points[(i + 1) % room.points.length];
+        
+        // Вычисляем расстояние от элемента до линии стены
+        let distance = distancePointToLine(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
+        
+        if (distance < minDistance && distance < 200) { // 200мм = 20см до стены
+            minDistance = distance;
+            closestWall = { p1, p2 };
+        }
+    }
+    
+    // Если нашли стену достаточно близко, поворачиваем элемент параллельно ей
+    if (closestWall && minDistance < 200) {
+        // Вычисляем угол стены
+        let dx = closestWall.p2.x - closestWall.p1.x;
+        let dy = closestWall.p2.y - closestWall.p1.y;
+        let wallAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+        
+        // Поворачиваем элемент параллельно стене
+        element.rotation = wallAngle;
+    }
+}
+
+// Вспомогательная функция: расстояние от точки до отрезка
+function distancePointToLine(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+    
+    const dot = A * C + B * D;
+    const len_sq = C * C + D * D;
+    let param = -1;
+    
+    if (len_sq !== 0) param = dot / len_sq;
+    
+    let xx, yy;
+    
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    } else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+    
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 // --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
@@ -1195,33 +1354,49 @@ function openProjectsModal() {
             container.innerHTML = `<div style="color: red; padding: 20px;">Ошибка загрузки: ${error.message}</div>`;
         });
 }
-function loadProject(projectId) {
-    if (!currentUser || !currentUser.uid || !db) return;
-
-    if (confirm("Загрузить этот проект? Текущая работа будет заменена.")) {
-        db.collection('users').doc(currentUser.uid).collection('projects').doc(projectId).get()
-            .then((doc) => {
-                if (doc.exists) {
-                    const project = doc.data();
-                    // Восстанавливаем данные комнат
-                    rooms = JSON.parse(JSON.stringify(project.data));
-                    activeRoom = 0; // Активируем первую комнату
-
-                    // Вызываем функции отрисовки
-                    if (typeof renderTabs === 'function') renderTabs();
-                    if (typeof draw === 'function') draw();
-
-                    closeProjectsModal();
-                    alert(`Проект "${project.name}" загружен.`);
-                } else {
-                    alert("Проект не найден.");
-                }
-            })
-            .catch((error) => {
-                console.error("Ошибка загрузки проекта:", error);
-                alert("Ошибка загрузки: " + error.message);
-            });
-    }
+// Новая функция: автоматически масштабирует комнату, чтобы она помещалась на экране
+function fitRoomToScreen() {
+    if (!rooms || rooms.length === 0 || !rooms[activeRoom]) return;
+    
+    const room = rooms[activeRoom];
+    if (!room.points || room.points.length === 0) return;
+    
+    // Находим границы комнаты
+    let minX = Math.min(...room.points.map(p => p.x));
+    let maxX = Math.max(...room.points.map(p => p.x));
+    let minY = Math.min(...room.points.map(p => p.y));
+    let maxY = Math.max(...room.points.map(p => p.y));
+    
+    // Добавляем отступы (500мм с каждой стороны)
+    minX -= 500;
+    maxX += 500;
+    minY -= 500;
+    maxY += 500;
+    
+    // Размеры комнаты в мм
+    const roomWidth = maxX - minX;
+    const roomHeight = maxY - minY;
+    
+    // Размеры экрана в пикселях
+    const screenWidth = window.innerWidth * 0.8; // 80% ширины экрана
+    const screenHeight = window.innerHeight * 0.6; // 60% высоты экрана
+    
+    // Вычисляем нужный масштаб
+    const scaleX = screenWidth / (roomWidth * MM_TO_PX);
+    const scaleY = screenHeight / (roomHeight * MM_TO_PX);
+    let newScale = Math.min(scaleX, scaleY, 0.5); // Ограничиваем максимальный масштаб
+    
+    // Устанавливаем новый масштаб
+    scale = newScale;
+    
+    // Центрируем комнату
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    
+    offsetX = screenWidth / 2 - centerX * MM_TO_PX * scale;
+    offsetY = screenHeight / 2 - centerY * MM_TO_PX * scale;
+    
+    console.log("📱 Комната отмасштабирована для мобильного экрана");
 }
 
 function deleteProject(projectId) {
@@ -1263,6 +1438,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
