@@ -1598,6 +1598,8 @@ document.addEventListener('keydown', (e) => {
             case 4: setTool('rail'); break;
         }
     }
+}); // ← ЗАКРЫВАЕМ addEventListener для keydown
+
 // --- ЗАЩИТА ОТ ЗАВИСАНИЯ НА МОБИЛЬНЫХ ---
 document.addEventListener('touchstart', (e) => {
     // Если нажали на кнопку, сбрасываем возможные зависшие состояния
@@ -1626,19 +1628,5 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
-});
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// КОНЕЦ ФАЙЛА - больше ничего не добавляем!
