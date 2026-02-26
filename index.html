@@ -193,6 +193,26 @@
 
 <div id="print-container"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+
+<script>
+  // Конфигурация Firebase (это настройки ТВОЕГО проекта)
+  const firebaseConfig = {
+    apiKey: "AIzaSyBe4dfQAk6aiMHlZv2p3KqMw8dXrrS6pNM",
+  authDomain: "seiling-plan-pro.firebaseapp.com",
+  projectId: "seiling-plan-pro",
+  storageBucket: "seiling-plan-pro.firebasestorage.app",
+  messagingSenderId: "536435562249",
+  appId: "1:536435562249:web:063858060492dc6f47a5d8",
+  measurementId: "G-6TXYE369QD"
+  };
+
+  // Инициализация Firebase
+  firebase.initializeApp(firebaseConfig);
+</script>
+
 <script src="script.js"></script>
     <div id="projectsModal" class="modal-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(44, 62, 80, 0.6); z-index: 3000; backdrop-filter: blur(4px); align-items: center; justify-content: center;">
     <div class="modal-content" style="background: white; padding: 30px; border-radius: 16px; width: 450px; max-width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: relative;">
@@ -209,5 +229,6 @@
 </body>
 
 </html>
+
 
 
