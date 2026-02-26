@@ -953,14 +953,29 @@ function updateStats() {
 }
 
 function resizeWall(i) {
-    let r = rooms[activeRoom]; let p1 = r.points[i], p2 = r.points[(i + 1) % r.points.length];
+    let r = rooms[activeRoom]; 
+    let p1 = r.points[i], p2 = r.points[(i + 1) % r.points.length];
     let curLen = Math.round(Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2)/10);
+    
     let n = prompt("Новая длина стены (см):", curLen);
-    if (n && !isNaN(n)) {
-        saveState(); let nl = n * 10; let ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-        let dx = Math.cos(ang) * nl - (p2.x - p1.x); let dy = Math.sin(ang) * nl - (p2.y - p1.y);
-        for (let k = (i + 1) % r.points.length; k < r.points.length; k++) { if (k === 0 && r.closed) continue; r.points[k].x += dx; r.points[k].y += dy; if (k === 0) break; }
+    
+    // Проверяем, что ввели число и оно больше 0
+    if (n && !isNaN(n) && parseFloat(n) > 0) {
+        saveState(); 
+        let nl = parseFloat(n) * 10; 
+        let ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        let dx = Math.cos(ang) * nl - (p2.x - p1.x); 
+        let dy = Math.sin(ang) * nl - (p2.y - p1.y);
+        
+        for (let k = (i + 1) % r.points.length; k < r.points.length; k++) { 
+            if (k === 0 && r.closed) continue; 
+            r.points[k].x += dx; 
+            r.points[k].y += dy; 
+            if (k === 0) break; 
+        }
         requestDraw();
+    } else if (n) {
+        alert("Пожалуйста, введите положительное число");
     }
 }
 
@@ -1457,6 +1472,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 }
+
 
 
 
