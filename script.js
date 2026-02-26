@@ -1,6 +1,25 @@
 // --- SAAS LOGIC ---
 let currentUser = null;
 let selectedRegPlan = 'free';
+// --- FIREBASE ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (добавь это) ---
+let db; // переменная для базы данных
+let auth; // переменная для авторизации
+
+// Эта функция достанет нам сервисы Firebase после их загрузки
+function initFirebaseServices() {
+    if (typeof firebase !== 'undefined') {
+        auth = firebase.auth();
+        db = firebase.firestore();
+        console.log("✅ Firebase сервисы готовы к работе");
+    } else {
+        console.error("❌ Firebase не загрузился! Проверь скрипты в index.html");
+        // Если Firebase не загрузился, можно показать сообщение пользователю
+        alert("Ошибка загрузки облачных сервисов. Проверьте интернет-соединение.");
+    }
+}
+
+// Вызываем функцию сразу после загрузки страницы, но нужно убедиться, что Firebase уже есть.
+// В window.onload мы её вызовем.
 
 function toggleAuthForms() {
     const isLogin = document.getElementById('login-form').style.display !== 'none';
@@ -16,29 +35,140 @@ function selectPlan(plan) {
 
 function handleLogin() {
     const email = document.getElementById('email').value;
-    if(!email) { alert("Введите почту"); return; }
-    
-    // Пытаемся найти в localStorage
-    const saved = localStorage.getItem('saas_user_' + email);
-    if(saved) {
-        currentUser = JSON.parse(saved);
-        completeAuth();
-    } else {
-        alert("Пользователь не найден. Пожалуйста, зарегистрируйтесь.");
-    }
+    const pass = document.getElementById('pass').value;
+
+    if(!email || !pass) { alert("Введите email и пароль"); return; }
+    if (!auth) { alert("Сервис входа временно недоступен."); return; }
+
+    console.log("Пытаемся войти...");
+
+    auth.signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            // Успешный вход
+            const user = userCredential.user;
+            console.log("✅ Вход выполнен:", user.email);
+
+            // Теперь нужно получить данные пользователя из Firestore (особенно тариф)
+            // Это сделает функция loadUserPlanFromFirestore, которую вызовет onAuthStateChanged
+            // Но для плавности, можно подготовить currentUser и тут.
+            // Мы положимся на onAuthStateChanged в window.onload, он сам всё подхватит.
+            // Окно входа закроется автоматически, когда сработает onAuthStateChanged.
+
+        })
+        .catch((error) => {
+            console.error("❌ Ошибка входа:", error);
+            let errorMessage = "Ошибка входа: ";
+            if (error.code === 'auth/user-not-found') {
+                errorMessage += "Пользователь не найден.";
+            } else if (error.code === 'auth/wrong-password') {
+                errorMessage += "Неверный пароль.";
+            } else {
+                errorMessage += error.message;
+            }
+            alert(errorMessage);
+        });
 }
 
 function handleRegister() {
     const name = document.getElementById('reg-name').value;
     const email = document.getElementById('reg-email').value;
     const pass = document.getElementById('reg-pass').value;
+    const plan = selectedRegPlan; // выбранный тариф
 
     if(!name || !email || !pass) { alert("Заполните все поля"); return; }
 
-    currentUser = { name, email, plan: selectedRegPlan };
-    localStorage.setItem('saas_user_' + email, JSON.stringify(currentUser));
-    localStorage.setItem('saas_last_user', email);
-    completeAuth();
+    if (!auth) { alert("Сервис регистрации временно недоступен."); return; }
+
+    // Показываем, что идет загрузка (можно добавить крутилку на кнопку)
+    console.log("Пытаемся зарегистрировать...");
+
+    // Создаем пользователя в Firebase Authentication
+    auth.createUserWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+            // Успешно создан
+            const user = userCredential.user;
+            console.log("✅ Пользователь создан в Auth:", user.uid);
+
+            // Обновляем профиль - добавляем имя
+            return user.updateProfile({
+                displayName: name
+            }).then(() => {
+                // Теперь создаем запись о пользователе в Firestore (база данных)
+                // Сохраняем email, имя и выбранный тариф
+                return db.collection('users').doc(user.uid).set({
+                    name: name,
+                    email: email,
+                    plan: plan,
+                    registeredAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+        })
+        .then(() => {
+            console.log("✅ Данные пользователя сохранены в Firestore");
+            // После успеха - выполняем вход (получаем свежие данные)
+            // Функция auth.onAuthStateChanged сама подхватит нового пользователя
+            // Но нам нужно сразу сказать приложению, что мы зашли.
+            // Можно просто вызвать completeAuth, предварительно создав currentUser
+            const currentFirebaseUser = auth.currentUser;
+            if (currentFirebaseUser) {
+                currentUser = {
+                    name: name,
+                    email: email,
+                    uid: currentFirebaseUser.uid,
+                    plan: plan
+                };
+                completeAuth();
+            }
+        })
+        .catch((error) => {
+            // Обрабатываем ошибки
+            console.error("❌ Ошибка регистрации:", error);
+            let errorMessage = "Ошибка регистрации: ";
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage += "Этот email уже используется.";
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage += "Пароль слишком слабый (минимум 6 символов).";
+            } else {
+                errorMessage += error.message;
+            }
+            alert(errorMessage);
+        });
+}
+// НОВАЯ ФУНКЦИЯ: Загружает план пользователя из Firestore
+function loadUserPlanFromFirestore(uid) {
+    if (!db) return;
+    db.collection('users').doc(uid).get()
+        .then((doc) => {
+            if (doc.exists) {
+                const userData = doc.data();
+                if (currentUser) {
+                    currentUser.plan = userData.plan || 'free';
+                    console.log("План пользователя загружен:", currentUser.plan);
+                    // Обновляем отображение плана в шапке
+                    const headerPlan = document.getElementById('header-plan');
+                    if (headerPlan) {
+                        headerPlan.innerText = "План: " + currentUser.plan.toUpperCase();
+                        if(currentUser.plan === 'pro') {
+                            headerPlan.style.background = 'var(--gold)';
+                            headerPlan.style.color = 'var(--dark)';
+                        } else {
+                            headerPlan.style.background = ''; // сбросить
+                            headerPlan.style.color = '';
+                        }
+                    }
+                }
+            } else {
+                console.log("Документ пользователя не найден, создаем...");
+                // Если документа нет, создадим его с планом по умолчанию
+                db.collection('users').doc(uid).set({
+                    plan: 'free',
+                    email: currentUser?.email || 'unknown'
+                });
+            }
+        })
+        .catch((error) => {
+            console.error("Ошибка загрузки плана:", error);
+        });
 }
 
 function completeAuth() {
@@ -70,23 +200,65 @@ function completeAuth() {
 
 function handleLogout() {
     if(confirm("Выйти из системы?")) {
-        localStorage.removeItem('saas_last_user');
-        location.reload();
+        if (auth) {
+            auth.signOut().then(() => {
+                console.log("✅ Выход выполнен");
+                // После выхода перезагружаем страницу, чтобы вернуться к окну входа
+                location.reload();
+            }).catch((error) => {
+                console.error("Ошибка выхода:", error);
+            });
+        } else {
+            // Запасной вариант
+            localStorage.removeItem('saas_last_user');
+            location.reload();
+        }
     }
 }
 
-// Проверка при загрузке страницы
+// Проверка при загрузке страницы - ЗАМЕНИ ЭТУ ФУНКЦИЮ ПОЛНОСТЬЮ
 window.onload = () => {
-    const lastUserEmail = localStorage.getItem('saas_last_user');
-    if(lastUserEmail) {
-        const saved = localStorage.getItem('saas_user_' + lastUserEmail);
-        if(saved) {
-            currentUser = JSON.parse(saved);
-            completeAuth();
-            return;
+    // Сначала пытаемся инициализировать Firebase сервисы
+    initFirebaseServices();
+
+    // Проверяем, может быть, пользователь уже был залогинен ранее (в этом браузере)
+    if (auth) { // если Firebase авторизация доступна
+        auth.onAuthStateChanged((user) => { // слушаем состояние входа
+            if (user) {
+                // Пользователь уже вошел!
+                console.log("Firebase: найден текущий пользователь", user.email);
+                // Создаем объект currentUser в том формате, который ждет твое приложение
+                currentUser = {
+                    name: user.displayName || user.email.split('@')[0], // берем имя или часть почты
+                    email: user.email,
+                    uid: user.uid,
+                    plan: 'free' // По умолчанию free. Позже будем брать из базы
+                };
+                // Загружаем его тариф из Firestore
+                loadUserPlanFromFirestore(user.uid);
+                // Завершаем вход (скрываем окно, показываем интерфейс)
+                completeAuth();
+            } else {
+                // Пользователь не вошел, показываем окно входа
+                console.log("Firebase: пользователь не найден, показываем вход");
+                document.getElementById('auth-overlay').style.display = 'flex';
+            }
+        });
+    } else {
+        // Если Firebase не загрузился, можно включить старую систему как запасной вариант
+        console.warn("Firebase не доступен, использую старую локальную систему.");
+        const lastUserEmail = localStorage.getItem('saas_last_user');
+        if (lastUserEmail) {
+            const saved = localStorage.getItem('saas_user_' + lastUserEmail);
+            if (saved) {
+                currentUser = JSON.parse(saved);
+                completeAuth();
+                return;
+            }
         }
+        document.getElementById('auth-overlay').style.display = 'flex';
     }
-};
+};;
 
 
 // --- CORE APPLICATION LOGIC (PRESERVED) ---
@@ -936,104 +1108,148 @@ function initTouchHandlers() {
 // --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
-    // Проверка авторизации (используем вашу логику SaaS)
-    if (!currentUser) {
+    if (!currentUser || !currentUser.uid) {
         alert("Пожалуйста, войдите в систему для сохранения проектов.");
         return;
     }
 
+    if (!db) { alert("База данных не доступна"); return; }
+
     const projectName = prompt("Введите название проекта:", `Проект от ${new Date().toLocaleDateString()}`);
     if (!projectName || projectName.trim() === "") return;
 
-    try {
-        const storageKey = `cp_data_${currentUser.email}`;
-        const existingProjects = JSON.parse(localStorage.getItem(storageKey) || "[]");
+    // Копируем данные комнат (rooms - это глобальная переменная твоего приложения)
+    // Важно: мы не можем сохранить функции или сложные объекты, поэтому делаем копию
+    const projectData = JSON.parse(JSON.stringify(rooms));
 
-        const newProject = {
-            id: Date.now(),
-            name: projectName.trim(),
-            date: new Date().toLocaleString('ru-RU'),
-            data: JSON.parse(JSON.stringify(rooms)) // Глубокое копирование текущего состояния комнат
-        };
+    const project = {
+        name: projectName.trim(),
+        date: new Date().toISOString(), // Сохраняем в международном формате
+        dateLocale: new Date().toLocaleString('ru-RU'),
+        data: projectData
+    };
 
-        existingProjects.unshift(newProject); // Добавляем в начало списка
-        localStorage.setItem(storageKey, JSON.stringify(existingProjects));
-        
-        // Визуальное подтверждение (можно заменить на кастомный toast)
-        alert("✅ Проект успешно сохранен в вашем профиле!");
-    } catch (e) {
-        console.error("Ошибка сохранения:", e);
-        alert("Ошибка при сохранении. Возможно, браузер ограничивает объем памяти.");
-    }
+    // Добавляем проект в подколлекцию 'projects' для данного пользователя
+    db.collection('users').doc(currentUser.uid).collection('projects').add(project)
+        .then((docRef) => {
+            console.log("✅ Проект сохранен с ID:", docRef.id);
+            alert("✅ Проект успешно сохранен в облаке!");
+        })
+        .catch((error) => {
+            console.error("❌ Ошибка сохранения проекта:", error);
+            alert("Ошибка при сохранении в облако: " + error.message);
+        });
 }
 
 function openProjectsModal() {
-    if (!currentUser) {
+    if (!currentUser || !currentUser.uid) {
         alert("Войдите в систему для просмотра ваших проектов.");
         return;
     }
+    if (!db) { alert("База данных не доступна"); return; }
 
-    const storageKey = `cp_data_${currentUser.email}`;
-    const projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
     const container = document.getElementById('projectsListContainer');
-    
-    container.innerHTML = ""; // Очистка
+    container.innerHTML = '<div style="text-align:center; padding:20px;">⏳ Загрузка проектов...</div>';
 
-    if (projects.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
-                <div style="font-size: 40px; margin-bottom: 10px;">empty</div>
-                <p>У вас пока нет сохраненных проектов.</p>
-            </div>`;
-    } else {
-        projects.forEach(project => {
-            const item = document.createElement('div');
-            item.className = 'project-item';
-            item.innerHTML = `
-                <div class="project-info">
-                    <span class="project-name">${project.name}</span>
-                    <span class="project-meta">${project.date}</span>
-                </div>
-                <div class="project-actions">
-                    <button class="btn-load" onclick="loadProject(${project.id})">Открыть</button>
-                    <button class="btn-delete" onclick="deleteProject(${project.id})">❌</button>
-                </div>
-            `;
-            container.appendChild(item);
-        });
-    }
-
+    // Показываем модалку сразу, чтобы был виден процесс загрузки
     document.getElementById('projectsModal').style.display = 'flex';
+
+    // Запрашиваем проекты пользователя из Firestore, сортируем по дате (новые сверху)
+    db.collection('users').doc(currentUser.uid).collection('projects')
+        .orderBy('date', 'desc')
+        .get()
+        .then((querySnapshot) => {
+            container.innerHTML = ""; // Очищаем контейнер
+
+            if (querySnapshot.empty) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: #94a3b8;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">📭</div>
+                        <p>У вас пока нет сохраненных проектов.</p>
+                    </div>`;
+                return;
+            }
+
+            querySnapshot.forEach((doc) => {
+                const project = doc.data();
+                const projectId = doc.id;
+                const displayDate = project.dateLocale || new Date(project.date).toLocaleString('ru-RU');
+
+                const item = document.createElement('div');
+                item.className = 'project-item';
+                item.innerHTML = `
+                    <div class="project-info">
+                        <span class="project-name">${escapeHtml(project.name)}</span>
+                        <span class="project-meta">${escapeHtml(displayDate)}</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn-load" onclick="loadProject('${projectId}')">Открыть</button>
+                        <button class="btn-delete" onclick="deleteProject('${projectId}')">❌</button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        })
+        .catch((error) => {
+            console.error("Ошибка загрузки проектов:", error);
+            container.innerHTML = `<div style="color: red; padding: 20px;">Ошибка загрузки: ${error.message}</div>`;
+        });
 }
-
 function loadProject(projectId) {
-    const storageKey = `cp_data_${currentUser.email}`;
-    const projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
-    const project = projects.find(p => p.id === projectId);
+    if (!currentUser || !currentUser.uid || !db) return;
 
-    if (project) {
-        if (confirm(`Загрузить проект "${project.name}"? Текущая работа будет заменена.`)) {
-            // Восстанавливаем данные
-            rooms = JSON.parse(JSON.stringify(project.data));
-            activeRoom = 0;
-            
-            // Вызываем существующие функции отрисовки
-            if (typeof renderTabs === 'function') renderTabs();
-            if (typeof draw === 'function') draw();
-            
-            closeProjectsModal();
-        }
+    if (confirm("Загрузить этот проект? Текущая работа будет заменена.")) {
+        db.collection('users').doc(currentUser.uid).collection('projects').doc(projectId).get()
+            .then((doc) => {
+                if (doc.exists) {
+                    const project = doc.data();
+                    // Восстанавливаем данные комнат
+                    rooms = JSON.parse(JSON.stringify(project.data));
+                    activeRoom = 0; // Активируем первую комнату
+
+                    // Вызываем функции отрисовки
+                    if (typeof renderTabs === 'function') renderTabs();
+                    if (typeof draw === 'function') draw();
+
+                    closeProjectsModal();
+                    alert(`Проект "${project.name}" загружен.`);
+                } else {
+                    alert("Проект не найден.");
+                }
+            })
+            .catch((error) => {
+                console.error("Ошибка загрузки проекта:", error);
+                alert("Ошибка загрузки: " + error.message);
+            });
     }
 }
 
 function deleteProject(projectId) {
+    if (!currentUser || !currentUser.uid || !db) return;
+
     if (confirm("Вы уверены, что хотите удалить этот проект?")) {
-        const storageKey = `cp_data_${currentUser.email}`;
-        let projects = JSON.parse(localStorage.getItem(storageKey) || "[]");
-        projects = projects.filter(p => p.id !== projectId);
-        localStorage.setItem(storageKey, JSON.stringify(projects));
-        openProjectsModal(); // Перерисовываем список
+        db.collection('users').doc(currentUser.uid).collection('projects').doc(projectId).delete()
+            .then(() => {
+                console.log("Проект удален");
+                // Обновляем список проектов в модальном окне
+                openProjectsModal(); // Переоткрываем для обновления
+            })
+            .catch((error) => {
+                console.error("Ошибка удаления:", error);
+                alert("Ошибка удаления: " + error.message);
+            });
     }
+}
+
+// Простая защита от XSS (когда пользователь ввел бы скрипт в название проекта)
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 function closeProjectsModal() {
@@ -1047,5 +1263,6 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
