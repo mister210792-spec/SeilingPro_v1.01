@@ -1243,7 +1243,10 @@ function initTouchHandlers() {
                 if (currentDistance === 0) return;
 
                 const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
-                scale = Math.max(0.05, Math.min(2, newScale)); // Ограничиваем масштаб
+               // Убираем ограничение или делаем его больше
+scale = Math.max(0.01, Math.min(5, newScale)); // Можно сильнее уменьшать и увеличивать
+// Или вообще без ограничений:
+// scale = newScale;
 
                 // Текущий центр между пальцами
                 const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
@@ -1258,7 +1261,7 @@ function initTouchHandlers() {
             return;
         }
 
-       // --- Один палец ---
+    // --- Один палец ---
 if (touches.length === 1) {
     const touch = touches[0];
     const clientX = touch.clientX - rect.left;
@@ -1269,64 +1272,64 @@ if (touches.length === 1) {
     const dy = clientY - touchState.touchStartY;
     const distance = Math.hypot(dx, dy);
 
-    // ✅ ВАЖНО: Если у нас уже есть активное перемещение, сразу двигаем
+    // ✅ ИСПРАВЛЕНО: Если у нас есть активное перемещение (точка или элемент)
     if (touchState.dragId || touchState.dragElem) {
         // Перетаскивание точки
         if (touchState.dragId) {
             const r = rooms[activeRoom];
             const point = r.points.find(p => p.id === touchState.dragId);
             if (point) {
+                // Используем абсолютные координаты, а не относительные
                 const mmX = pxToMm(clientX, 'x');
                 const mmY = pxToMm(clientY, 'y');
                 point.x = mmX;
                 point.y = mmY;
                 requestDraw();
             }
-            return;
         }
-
         // Перетаскивание элемента
-        if (touchState.dragElem) {
+        else if (touchState.dragElem) {
+            // Используем абсолютные координаты, а не относительные
             const mmX = pxToMm(clientX, 'x');
             const mmY = pxToMm(clientY, 'y');
             touchState.dragElem.x = mmX;
             touchState.dragElem.y = mmY;
             requestDraw();
-            return;
         }
+        return; // Выходим, чтобы не обрабатывать pan
     }
 
-    // Если перемещение превысило порог, отменяем долгое нажатие
+    // Если перемещение превысило порог
     if (distance > touchState.MOVE_THRESHOLD) {
         clearTimeout(touchState.longPressTimer);
         touchState.moved = true;
         
-        // ✅ ИСПРАВЛЕНИЕ: Если было долгое нажатие и мы начали двигать
+        // Если было долгое нажатие, активируем перемещение
         if (touchState.isLongPress) {
-            // Активируем перемещение если оно еще не активно
-            if (!touchState.dragId && !touchState.dragElem) {
-                if (touchState.potentialDragId) {
-                    touchState.dragId = touchState.potentialDragId;
-                    saveState();
-                } else if (touchState.potentialDragElem) {
-                    touchState.dragElem = touchState.potentialDragElem;
-                    saveState();
-                }
+            if (touchState.potentialDragId) {
+                touchState.dragId = touchState.potentialDragId;
+                saveState();
+                console.log("Активировано перемещение точки");
+            } else if (touchState.potentialDragElem) {
+                touchState.dragElem = touchState.potentialDragElem;
+                saveState();
+                console.log("Активировано перемещение элемента");
             }
-        } else {
-            // Если не было долгого нажатия, просто перемещаем холст
-            if (!touchState.dragId && !touchState.dragElem) {
-                touchState.isPanning = true;
-                touchState.lastPanX = offsetX;
-                touchState.lastPanY = offsetY;
-            }
+        } 
+        // Если не было долгого нажатия и нет активного перемещения - перемещаем холст (pan)
+        else if (!touchState.dragId && !touchState.dragElem) {
+            touchState.isPanning = true;
+            touchState.lastPanX = offsetX;
+            touchState.lastPanY = offsetY;
+            console.log("Активирован pan");
         }
     }
 
-    // Pan (перемещение по холсту)
+    // Перемещение по холсту (pan)
     if (touchState.isPanning) {
-        offsetX = touchState.lastPanX + (clientX - touchState.touchStartX);
-        offsetY = touchState.lastPanY + (clientY - touchState.touchStartY);
+        // При pan используем относительное перемещение
+        offsetX = touchState.lastPanX + dx;
+        offsetY = touchState.lastPanY + dy;
         requestDraw();
     }
 }
@@ -1630,3 +1633,4 @@ document.addEventListener('touchcancel', () => {
 });
 
 // КОНЕЦ ФАЙЛА - больше ничего не добавляем!
+
