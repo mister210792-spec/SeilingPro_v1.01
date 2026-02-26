@@ -168,6 +168,7 @@ function completeAuth() {
     }
 
     initTouchHandlers();
+    initMenuScroll();
 }
 
 function handleLogout() {
@@ -188,6 +189,7 @@ function handleLogout() {
 
 window.onload = () => {
     initFirebaseServices();
+    initMenuScroll();
 
     if (auth) {
         auth.onAuthStateChanged((user) => {
@@ -999,22 +1001,38 @@ function generateEstimateRows(room) {
 
 function initTouchHandlers() {
     const canvas = document.getElementById('canvas');
+    const sideMenu = document.querySelector('.side-menu');
     if (!canvas) return;
+    
+function initMenuScroll() {
+    const sideMenu = document.querySelector('.side-menu');
+    if (sideMenu) {
+        // Принудительно включаем скролл
+        sideMenu.style.overflowY = 'auto';
+        sideMenu.style.webkitOverflowScrolling = 'touch';
+    }
+}
 
-    function getTouchDistance(touches) {
-        if (touches.length < 2) return 0;
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        return Math.sqrt(dx * dx + dy * dy);
+    // Функция для проверки, находится ли касание над меню
+    function isTouchOverSideMenu(touchX, touchY) {
+        if (!sideMenu) return false;
+        const rect = sideMenu.getBoundingClientRect();
+        return touchX >= rect.left && touchX <= rect.right && 
+               touchY >= rect.top && touchY <= rect.bottom;
     }
 
-   canvas.addEventListener('touchstart', (e) => {
-    if (document.getElementById('auth-overlay').style.display !== 'none') return;
-    
-    // НЕ вызываем preventDefault для всего подряд
-    // Вызываем только если действительно работаем с холстом
-    
-    const touches = e.touches;
+    canvas.addEventListener('touchstart', (e) => {
+        if (document.getElementById('auth-overlay').style.display !== 'none') return;
+        
+        const touch = e.touches[0];
+        
+        // Проверяем, не началось ли касание над меню
+        if (isTouchOverSideMenu(touch.clientX, touch.clientY)) {
+            // Если касание над меню - не трогаем событие, пусть меню скроллится
+            return;
+        }
+        
+        e.preventDefault(); // Предотвращаем скролл только если касание на холсте
     
     // Сброс состояний
     touchState.moved = false;
@@ -1104,11 +1122,17 @@ function initTouchHandlers() {
     }
 }, { passive: false });
 
-    canvas.addEventListener('touchmove', (e) => {
-    if (document.getElementById('auth-overlay').style.display !== 'none') return;
+     canvas.addEventListener('touchmove', (e) => {
+        if (document.getElementById('auth-overlay').style.display !== 'none') return;
+        
+        const touch = e.touches[0];
+        
+        // Если мы не в режиме перетаскивания и касание над меню - пропускаем
+        if (!touchState.dragId && !touchState.dragElem && !touchState.isPanning && 
+            isTouchOverSideMenu(touch.clientX, touch.clientY)) {
+            return;
+        }
     
-    const touches = e.touches;
-    const rect = canvas.getBoundingClientRect();
 
     // --- Два пальца: зум ---
     if (touches.length === 2 && touchState.isPinching) {
@@ -1422,6 +1446,24 @@ function fitRoomToScreen() {
     console.log("📱 Комната отмасштабирована для мобильного экрана");
 }
 
+function initMenuScroll() {
+    const sideMenu = document.querySelector('.side-menu');
+    if (sideMenu) {
+        // Принудительно включаем скролл
+        sideMenu.style.overflowY = 'auto';
+        sideMenu.style.maxHeight = '40vh';
+        sideMenu.style.webkitOverflowScrolling = 'touch';
+        
+        // Добавляем обработчик для предотвращения всплытия событий
+        sideMenu.addEventListener('touchstart', (e) => {
+            e.stopPropagation(); // Останавливаем всплытие события к canvas
+        }, { passive: true });
+        
+        sideMenu.addEventListener('touchmove', (e) => {
+            e.stopPropagation(); // Останавливаем всплытие
+        }, { passive: true });
+    }
+}
 function loadProject(projectId) {
     if (!currentUser || !currentUser.uid || !db) return;
 
@@ -1490,6 +1532,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
 
 
 
