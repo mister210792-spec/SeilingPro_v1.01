@@ -63,7 +63,17 @@
     .estimate-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; align-items: center; }
     .estimate-qty { font-weight: bold; color: var(--primary); background: #e0f7fa; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
 
-    .length-label { fill: #007aff; font-size: 12px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-anchor: middle; cursor: pointer; }
+    .length-label { 
+    fill: #007aff; 
+    font-size: 12px; 
+    font-weight: bold; 
+    paint-order: stroke; 
+    stroke: #fff; 
+    stroke-width: 3px; 
+    text-anchor: middle; 
+    cursor: pointer; 
+    pointer-events: all; /* Важно для кликабельности */
+}
     .diag-label { fill: var(--diag); font-size: 10px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; }
     .measure-label { fill: var(--danger); font-size: 10px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; }
     .live-label { fill: var(--danger); font-size: 14px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-anchor: middle; pointer-events: none; }
@@ -495,4 +505,5 @@
 /* Кастомный скроллбар для списка */
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
 #projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
 
