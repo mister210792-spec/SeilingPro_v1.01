@@ -249,3 +249,19 @@
 /* Кастомный скроллбар для списка */
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
 #projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+/* Запрещаем скролл на мобильных устройствах */
+canvas {
+    touch-action: none; /* Это уже есть, но убедись */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+body {
+    overflow: hidden; /* Запрещаем скролл всей страницы */
+    position: fixed; /* Фиксируем позицию */
+    width: 100%;
+    height: 100%;
+}
+
