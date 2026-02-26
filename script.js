@@ -258,7 +258,7 @@ window.onload = () => {
         }
         document.getElementById('auth-overlay').style.display = 'flex';
     }
-};;
+};
 
 
 // --- CORE APPLICATION LOGIC (PRESERVED) ---
@@ -1438,6 +1438,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
