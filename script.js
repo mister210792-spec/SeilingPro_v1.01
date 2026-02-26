@@ -1377,7 +1377,7 @@ if (touches.length === 1) {
         touchState.isLongPress = false;
     }, { passive: false });
 
-    // Отмена касания
+   // Отмена касания
     canvas.addEventListener('touchcancel', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
@@ -1396,7 +1396,8 @@ if (touches.length === 1) {
         touchState.moved = false;
         touchState.isLongPress = false;
     }, { passive: false });
-        }
+} // ← ЭТО ЗАКРЫТИЕ ФУНКЦИИ initTouchHandlers() - ОДНА СКОБКА!
+
 // --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
@@ -1609,4 +1610,5 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
+
 
