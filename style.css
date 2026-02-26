@@ -103,147 +103,344 @@
         .total-page { page-break-after: avoid; }
     }
 
-/* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
+/* --- МОБИЛЬНАЯ АДАПТАЦИЯ (ПЕРЕРАБОТАННАЯ) --- */
 @media (max-width: 768px) {
     :root {
-        --panel-w: 100%;
+        --panel-w: 85%; /* Ширина боковой панели */
     }
 
     body {
-        overflow: auto;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
     }
 
-    /* Шапка */
+    /* Шапка - скрыта по умолчанию */
     .header {
+        position: fixed;
+        top: -100px; /* Полностью скрыта сверху */
+        left: 0;
+        right: 0;
+        background: var(--dark);
+        color: white;
+        padding: 15px;
+        z-index: 1000;
+        transition: top 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         flex-direction: column;
-        height: auto;
-        padding: 10px;
-        gap: 10px;
-        flex-shrink: 0; /* Не сжимается */
+        gap: 12px;
+        align-items: flex-start;
+        border-bottom: 2px solid var(--primary);
+    }
+
+    .header.visible {
+        top: 0; /* Показываем при активации */
     }
 
     .header h2 {
         font-size: 16px;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 5px;
     }
 
-    .user-info {
+    .header .user-info {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .header .project-controls {
+        width: 100%;
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+        justify-content: space-between;
+    }
+
+    .header > div:last-child {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Кнопка меню (3 точки) */
+    .mobile-menu-btn {
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        width: 50px;
+        height: 50px;
+        border-radius: 30px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 1001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.2s;
+        padding: 0;
+    }
+
+    .mobile-menu-btn.active {
+        background: var(--dark);
+        transform: rotate(90deg);
+    }
+
+    /* Затемнение фона при открытом меню */
+    .mobile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        display: none;
+        backdrop-filter: blur(2px);
+    }
+
+    .mobile-overlay.visible {
+        display: block;
     }
 
     /* Главная разметка */
     .main-layout {
         flex-direction: column;
-        overflow: auto; /* Разрешаем скролл */
-        flex: 1;
+        height: 100vh;
+        padding-top: 0; /* Убираем отступ, так как шапка скрыта */
     }
 
-    /* Холст */
+    /* Холст на весь экран */
     .drawing-zone {
-        height: 50vh; /* Половина экрана */
-        min-height: 300px;
+        height: 100vh;
+        width: 100vw;
+        padding: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1;
+    }
+
+    #tabs {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        right: 70px; /* Оставляем место для кнопки меню */
+        z-index: 10;
+        background: rgba(255,255,255,0.9);
+        border-radius: 30px;
         padding: 5px;
-        flex-shrink: 0; /* Не сжимается */
+        backdrop-filter: blur(5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .tab {
+        padding: 8px 20px 8px 15px;
+        font-size: 12px;
+        border-radius: 20px !important;
+        background: white;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
 
     #canvas-container {
+        border-radius: 0;
         height: 100%;
+        width: 100%;
     }
 
     /* Боковое меню */
     .side-menu {
+        position: fixed;
+        right: -100%;
+        top: 0;
+        width: var(--panel-w);
+        height: 100vh;
+        z-index: 1002;
+        transition: right 0.3s ease;
+        background: white;
+        border-left: 2px solid var(--primary);
+        box-shadow: -5px 0 30px rgba(0,0,0,0.2);
+        padding: 20px 15px;
+        overflow-y: auto;
+    }
+
+    .side-menu.visible {
+        right: 0;
+    }
+
+    /* Кнопка закрытия бокового меню */
+    .side-menu-close {
+        position: sticky;
+        top: 0;
         width: 100%;
-        height: auto;
-        max-height: 40vh; /* Ограничиваем высоту */
-        border-left: none;
-        border-top: 2px solid #d1d9e6;
-        padding: 15px;
-        box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
-        overflow-y: auto !important; /* Принудительно включаем скролл */
-        -webkit-overflow-scrolling: touch;
-        flex-shrink: 1; /* Может сжиматься */
-    }
-
-    /* Убеждаемся что все секции меню нормально отображаются */
-    .menu-section {
+        display: flex;
+        justify-content: flex-end;
         margin-bottom: 15px;
-        padding: 12px;
+        background: white;
+        padding: 5px 0;
+        z-index: 1;
     }
 
-    /* Увеличиваем кнопки */
+    .side-menu-close button {
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+        background: #f0f0f0;
+        border: none;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    /* Увеличиваем размеры кнопок для пальцев */
     button, select {
-        padding: 14px;
-        font-size: 14px;
-        min-height: 44px; /* Минимальный размер для касания */
+        padding: 15px;
+        font-size: 15px;
+        min-height: 50px;
     }
 
-    /* Сетка тарифов */
+    .menu-section h3 {
+        font-size: 15px;
+        padding: 10px 12px;
+    }
+
+    /* Сетка тарифов при регистрации */
     .pricing-container {
         flex-direction: column;
         align-items: center;
+        gap: 15px;
     }
 
     .price-card {
-        width: 90%;
+        width: 100%;
+        max-width: 300px;
     }
 
-    /* Модальное окно */
+    /* Модальное окно цен */
     #priceModal .modal-content {
         width: 95%;
-        margin: 5% auto;
+        margin: 10% auto;
         padding: 15px;
         max-height: 80vh;
-        overflow-y: auto;
     }
     
     .price-table input {
         width: 60px;
+        padding: 8px;
     }
 
-    /* Модалка проектов */
-    #projectsModal .modal-content {
-        width: 95%;
-        max-height: 80vh;
-        overflow-y: auto;
+    /* Статистика в боковом меню */
+    .stat-card, .total-card {
+        padding: 12px;
+        font-size: 14px;
     }
 
-    #projectsListContainer {
-        max-height: 60vh;
-        overflow-y: auto !important;
+    /* Анимации для плавности */
+    .header, .side-menu, .mobile-overlay {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+}
+
+/* Очень маленькие экраны */
+@media (max-width: 480px) {
+    :root {
+        --panel-w: 90%;
+    }
+
+    .side-menu {
+        width: 90%;
+    }
+
+    #tabs {
+        right: 60px;
+        padding: 3px;
+    }
+
+    .tab {
+        padding: 6px 16px 6px 12px;
+        font-size: 11px;
+    }
+
+    .mobile-menu-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 22px;
+    }
+}
+/* Стили для списка сохраненных проектов */
+.project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.project-item:hover {
+    border-color: var(--primary);
+    background: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.project-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.project-name {
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 15px;
+}
+
+.project-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.project-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-load {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-delete {
+    background: #fff1f1;
+    color: var(--danger);
+    border: 1px solid #ffebeb;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-delete:hover {
+    background: var(--danger);
+    color: white;
 }
 
 /* Кастомный скроллбар для списка */
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
 #projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-/* Запрещаем скролл только на холсте */
-canvas {
-    touch-action: none;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-}
-
-/* Разрешаем скролл на всей странице */
-body {
-    overflow: auto;
-    position: relative;
-    width: 100%;
-    height: 100vh;
-}
-
-/* Боковое меню должно скроллиться */
-.side-menu {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* плавный скролл на iOS */
-}
-
-/* Контейнер с проектами тоже должен скроллиться */
-#projectsListContainer {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-}
