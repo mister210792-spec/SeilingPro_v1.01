@@ -424,11 +424,14 @@ let currentTool = 'draw';
 let showDiagonals = true;
 let showMeasures = true;
 let history = [];
-
-let rafPending = false; // для оптимизации отрисовки
+// Глобальные переменные для оптимизации
+let rafPending = false;
 let lastMoveTime = 0;
 const MOVE_THROTTLE = 16; // ~60fps
+let animationFrame = null;
+let pendingDraw = false;
 
+// Оптимизированный touchState
 let touchState = {
     isPinching: false,
     isPanning: false,
@@ -442,14 +445,8 @@ let touchState = {
     dragElem: null,
     moved: false,
     MOVE_THRESHOLD: 5,
-    longPressTimer: null,
-    isLongPress: false,
-    rotationCandidate: null,
-    initialAngle: 0,
-    initialRotation: 0,
     lastTouchPos: null,
-    skipDraw: false,
-    pendingDraw: false
+    lastElementPos: { x: 0, y: 0 } // для отслеживания перемещения элемента
 };
 
 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -582,6 +579,20 @@ function drawGrid() {
 }
 
 function draw(isExport = false) {
+    // Используем requestAnimationFrame для плавности
+    if (!isExport && pendingDraw) {
+        if (animationFrame) return;
+        animationFrame = requestAnimationFrame(() => {
+            animationFrame = null;
+            pendingDraw = false;
+            performDraw(false);
+        });
+        return;
+    }
+    performDraw(isExport);
+}
+
+function performDraw(isExport) {
     // Очищаем SVG
     svg.innerHTML = ""; 
     
@@ -607,58 +618,51 @@ function draw(isExport = false) {
     
     // Рисуем пунктирную линию при рисовании
     if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && currentTool === 'draw') {
-        if (typeof window.lastDrawTime === 'undefined') window.lastDrawTime = 0;
-        const now = Date.now();
+        let last = r.points[r.points.length - 1];
+        let first = r.points[0];
+        let rawX, rawY;
         
-        if (now - window.lastDrawTime > 16 || isMobile) {
-            let last = r.points[r.points.length - 1];
-            let first = r.points[0];
-            let rawX, rawY;
-            
-            if (isMobile && touchState.lastTouchPos) {
-                rawX = pxToMm(touchState.lastTouchPos.x, 'x');
-                rawY = pxToMm(touchState.lastTouchPos.y, 'y');
+        if (isMobile && touchState.lastTouchPos) {
+            rawX = pxToMm(touchState.lastTouchPos.x, 'x');
+            rawY = pxToMm(touchState.lastTouchPos.y, 'y');
+        } else {
+            rawX = pxToMm(mousePos.x, 'x');
+            rawY = pxToMm(mousePos.y, 'y');
+        }
+        
+        let sX = snap(rawX, first ? first.x : null);
+        let sY = snap(rawY, first ? first.y : null);
+        
+        if (!mousePos.shift && last) {
+            if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) {
+                sY = last.y;
             } else {
-                rawX = pxToMm(mousePos.x, 'x');
-                rawY = pxToMm(mousePos.y, 'y');
+                sX = last.x;
             }
+        }
+        
+        if (first) {
+            isHoveringFirstPoint = (r.points.length >= 3 &&
+                Math.sqrt((mousePos.x - mmToPx(first.x, 'x'))**2 +
+                         (mousePos.y - mmToPx(first.y, 'y'))**2) < 25);
+        }
+        
+        if (first && (Math.abs(sX - first.x) < 2 || Math.abs(sY - first.y) < 2)) {
+            svg.appendChild(createLine(mmToPx(first.x, 'x'), mmToPx(first.y, 'y'),
+                                      mmToPx(sX, 'x'), mmToPx(sY, 'y'), "#bbb", 1, "4,4"));
+        }
+        
+        if (last) {
+            svg.appendChild(createLine(mmToPx(last.x, 'x'), mmToPx(last.y, 'y'),
+                                      mmToPx(sX, 'x'), mmToPx(sY, 'y'),
+                                      isHoveringFirstPoint ? "var(--success)" : "var(--primary)", 2, "6,4"));
             
-            let sX = snap(rawX, first ? first.x : null);
-            let sY = snap(rawY, first ? first.y : null);
-            
-            if (!mousePos.shift && last) {
-                if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) {
-                    sY = last.y;
-                } else {
-                    sX = last.x;
-                }
+            let dist = Math.round(Math.sqrt((sX - last.x)**2 + (sY - last.y)**2) / 10);
+            if (dist > 0) {
+                renderText(mmToPx((last.x + sX)/2, 'x'),
+                          mmToPx((last.y + sY)/2, 'y') - 10,
+                          dist + " см", "live-label");
             }
-            
-            if (first) {
-                isHoveringFirstPoint = (r.points.length >= 3 &&
-                    Math.sqrt((mousePos.x - mmToPx(first.x, 'x'))**2 +
-                             (mousePos.y - mmToPx(first.y, 'y'))**2) < 25);
-            }
-            
-            if (first && (Math.abs(sX - first.x) < 2 || Math.abs(sY - first.y) < 2)) {
-                svg.appendChild(createLine(mmToPx(first.x, 'x'), mmToPx(first.y, 'y'),
-                                          mmToPx(sX, 'x'), mmToPx(sY, 'y'), "#bbb", 1, "4,4"));
-            }
-            
-            if (last) {
-                svg.appendChild(createLine(mmToPx(last.x, 'x'), mmToPx(last.y, 'y'),
-                                          mmToPx(sX, 'x'), mmToPx(sY, 'y'),
-                                          isHoveringFirstPoint ? "var(--success)" : "var(--primary)", 2, "6,4"));
-                
-                let dist = Math.round(Math.sqrt((sX - last.x)**2 + (sY - last.y)**2) / 10);
-                if (dist > 0) {
-                    renderText(mmToPx((last.x + sX)/2, 'x'),
-                              mmToPx((last.y + sY)/2, 'y') - 10,
-                              dist + " см", "live-label");
-                }
-            }
-            
-            window.lastDrawTime = now;
         }
     }
     
@@ -807,11 +811,48 @@ function drawElementMeasures(el, room) {
 }
 
 svg.onmousemove = (e) => {
-    const rect = svg.getBoundingClientRect(); mousePos.x = e.clientX - rect.left; mousePos.y = e.clientY - rect.top; mousePos.shift = e.shiftKey;
-    if (isPanning) { offsetX = e.clientX - startPanX; offsetY = e.clientY - startPanY; draw(); return; }
-    if (dragId) { let p = rooms[activeRoom].points.find(pt => pt.id === dragId); p.x = snap(pxToMm(mousePos.x, 'x')); p.y = snap(pxToMm(mousePos.y, 'y')); draw(); drawSmartGuides(p.x, p.y, dragId); return; }
-    if (dragElem) { let s = getSnappedPos(pxToMm(mousePos.x, 'x'), pxToMm(mousePos.y, 'y'), dragElem); dragElem.x = s.x; dragElem.y = s.y; draw(); drawSmartGuides(dragElem.x, dragElem.y, null); return; }
-    draw();
+    const rect = svg.getBoundingClientRect(); 
+    mousePos.x = e.clientX - rect.left; 
+    mousePos.y = e.clientY - rect.top; 
+    mousePos.shift = e.shiftKey;
+    
+    if (isPanning) { 
+        offsetX = e.clientX - startPanX; 
+        offsetY = e.clientY - startPanY; 
+        draw(); 
+        return; 
+    }
+    
+    if (dragId) { 
+        let p = rooms[activeRoom].points.find(pt => pt.id === dragId); 
+        p.x = snap(pxToMm(mousePos.x, 'x')); 
+        p.y = snap(pxToMm(mousePos.y, 'y')); 
+        draw(); 
+        drawSmartGuides(p.x, p.y, dragId); 
+        return; 
+    }
+    
+    if (dragElem) { 
+        let s = getSnappedPos(pxToMm(mousePos.x, 'x'), pxToMm(mousePos.y, 'y'), dragElem); 
+        dragElem.x = s.x; 
+        dragElem.y = s.y; 
+        
+        // Проверяем поворот к стене
+        if (dragElem.type === 'rail' || dragElem.subtype === 'TRACK' || dragElem.subtype === 'LIGHT_LINE') {
+            checkAndRotateToWall(dragElem, rooms[activeRoom]);
+        }
+        
+        draw(); 
+        drawSmartGuides(dragElem.x, dragElem.y, null); 
+        return; 
+    }
+    
+    // Используем throttle для обычного движения мыши
+    const now = Date.now();
+    if (now - lastMoveTime > MOVE_THROTTLE) {
+        draw();
+        lastMoveTime = now;
+    }
 };
 
 svg.onmousedown = (e) => { if (e.target === svg && currentTool === 'draw') { isPanning = true; startPanX = e.clientX - offsetX; startPanY = e.clientY - offsetY; } };
@@ -1121,33 +1162,38 @@ point.y = snap(mmY, null, GRID_SNAP_MM);
         }
 
         // Перетаскивание элемента
-        if (touchState.dragElem) {
-            const r = rooms[activeRoom];
-            const el = touchState.dragElem;
-            
-            // Получаем координаты в миллиметрах
-            let mmX = pxToMm(clientX, 'x');
-            let mmY = pxToMm(clientY, 'y');
-            
-            // Обновляем позицию элемента (без snap для плавности)
-            el.x = mmX;
-            el.y = mmY;
-            
-            // Проверяем поворот к стене для линейных элементов
-            if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
-                checkAndRotateToWall(el, r);
-            }
-            
-            // Плавная отрисовка с requestAnimationFrame
-            if (!rafPending) {
-                rafPending = true;
-                requestAnimationFrame(() => {
-                    draw();
-                    rafPending = false;
-                });
-            }
-            return;
+        // Перетаскивание элемента
+if (touchState.dragElem) {
+    const r = rooms[activeRoom];
+    const el = touchState.dragElem;
+    
+    // Получаем координаты в миллиметрах
+    let mmX = pxToMm(clientX, 'x');
+    let mmY = pxToMm(clientY, 'y');
+    
+    // Вычисляем смещение относительно предыдущего кадра
+    let dx = mmX - el.x;
+    let dy = mmY - el.y;
+    
+    // Если смещение слишком большое (скачок), игнорируем
+    if (Math.abs(dx) < 100 && Math.abs(dy) < 100) {
+        // Плавно обновляем позицию
+        el.x = mmX;
+        el.y = mmY;
+        
+        // Проверяем поворот к стене
+        if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
+            checkAndRotateToWall(el, r);
         }
+    }
+    
+    // Плавная отрисовка
+    if (!pendingDraw) {
+        pendingDraw = true;
+        draw();
+    }
+    return;
+}
 
         // Pan (перемещение по холсту)
         if (touchState.isPanning) {
@@ -1207,66 +1253,72 @@ function checkAndRotateToWall(element, room) {
     let minDistance = Infinity;
     let bestAngle = 0;
     
-    // Проходим по всем стенам комнаты
+    // Проверяем расстояние до всех стен
     for (let i = 0; i < room.points.length; i++) {
         let p1 = room.points[i];
         let p2 = room.points[(i + 1) % room.points.length];
         
-        // Вычисляем расстояние от центра элемента до линии стены
-        let distance = distancePointToLine(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
+        // Вычисляем расстояние до стены
+        let distance = distanceToSegment(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
         
-        // Если элемент достаточно близко к стене (менее 200мм)
-        if (distance < 200 && distance < minDistance) {
+        // Если элемент близко к стене (менее 50мм) и это самая близкая стена
+        if (distance < 50 && distance < minDistance) {
             minDistance = distance;
             bestWall = { p1, p2 };
             
-            // Вычисляем угол стены в градусах
+            // Вычисляем угол стены
             let dx = p2.x - p1.x;
             let dy = p2.y - p1.y;
             bestAngle = Math.atan2(dy, dx) * 180 / Math.PI;
         }
     }
     
-    // Если нашли подходящую стену, поворачиваем элемент
-    if (bestWall && minDistance < 200) {
-        // Поворачиваем элемент параллельно стене
-        element.rotation = bestAngle;
+    // Если нашли подходящую стену
+    if (bestWall && minDistance < 50) {
+        // Плавно поворачиваем элемент
+        let currentRotation = element.rotation || 0;
+        let targetRotation = bestAngle;
+        
+        // Интерполяция для плавного поворота
+        let rotationDiff = targetRotation - currentRotation;
+        if (Math.abs(rotationDiff) > 180) {
+            if (rotationDiff > 0) {
+                rotationDiff -= 360;
+            } else {
+                rotationDiff += 360;
+            }
+        }
+        
+        // Поворачиваем не резко, а плавно (20% от разницы)
+        element.rotation = currentRotation + rotationDiff * 0.2;
         return true;
     }
     
     return false;
 }
 
-function distancePointToLine(px, py, x1, y1, x2, y2) {
-    // Вектор стены
-    const wallX = x2 - x1;
-    const wallY = y2 - y1;
+// Улучшенная функция расстояния до отрезка
+function distanceToSegment(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
     
-    // Вектор от начала стены до точки
-    const pointX = px - x1;
-    const pointY = py - y1;
+    const dot = A * C + B * D;
+    const len_sq = C * C + D * D;
     
-    // Длина стены в квадрате
-    const wallLengthSq = wallX * wallX + wallY * wallY;
+    if (len_sq === 0) return Math.sqrt(A * A + B * B);
     
-    // Если стена - это точка (длина 0)
-    if (wallLengthSq < 0.1) {
-        return Math.sqrt(pointX * pointX + pointY * pointY);
-    }
+    let t = dot / len_sq;
     
-    // Проекция точки на линию стены (параметр t)
-    let t = (pointX * wallX + pointY * wallY) / wallLengthSq;
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
     
-    // Ограничиваем t отрезком [0, 1]
-    t = Math.max(0, Math.min(1, t));
+    const xx = x1 + t * C;
+    const yy = y1 + t * D;
     
-    // Ближайшая точка на стене
-    const projX = x1 + t * wallX;
-    const projY = y1 + t * wallY;
-    
-    // Расстояние от точки до проекции
-    const dx = px - projX;
-    const dy = py - projY;
+    const dx = px - xx;
+    const dy = py - yy;
     
     return Math.sqrt(dx * dx + dy * dy);
 }
@@ -1460,6 +1512,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
 
 
 
