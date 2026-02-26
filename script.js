@@ -1608,4 +1608,3 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
-});
