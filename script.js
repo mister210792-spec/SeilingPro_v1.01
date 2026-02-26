@@ -444,6 +444,7 @@ let touchState = {
     initialAngle: 0,
     initialRotation: 0,
     lastTouchPos: null,
+    skipDraw: false,
     pendingDraw: false
 };
 
@@ -577,6 +578,17 @@ function drawGrid() {
 }
 
 function draw(isExport = false) {
+    // Оптимизация для мобильных - пропускаем кадры если не успеваем
+    if (isMobile && touchState.dragElem && !isExport) {
+        if (touchState.skipDraw) {
+            touchState.skipDraw = false;
+            return;
+        }
+        touchState.skipDraw = true;
+    }
+    
+    svg.innerHTML = ""; 
+    if (!isExport) drawGrid();
     svg.innerHTML = ""; if (!isExport) drawGrid();
     let r = rooms[activeRoom]; if (!r) return;
     if (r.closed && r.points.length > 3 && showDiagonals) {
@@ -1034,31 +1046,47 @@ function initTouchHandlers() {
             }
 
             if (touchState.dragElem) {
-                const r = rooms[activeRoom];
-                const el = touchState.dragElem;
-                
-                let mmX = pxToMm(clientX, 'x');
-                let mmY = pxToMm(clientY, 'y');
-                
-                mmX = snap(mmX, null, LIGHT_SNAP_MM);
-                mmY = snap(mmY, null, LIGHT_SNAP_MM);
-                
-                el.x = mmX;
-                el.y = mmY;
-                
-                if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
-                    checkAndRotateToWall(el, r);
-                }
-                
-                if (!touchState.pendingDraw) {
-                    touchState.pendingDraw = true;
-                    requestAnimationFrame(() => {
-                        draw();
-                        touchState.pendingDraw = false;
-                    });
-                }
-                return;
+    const r = rooms[activeRoom];
+    const el = touchState.dragElem;
+    
+    // Получаем координаты в миллиметрах
+    let mmX = pxToMm(clientX, 'x');
+    let mmY = pxToMm(clientY, 'y');
+    
+    // Более плавное перемещение - сначала двигаем без привязки
+    // чтобы не было дерганья, потом применяем snap для финальной позиции
+    if (touchState.moved) {
+        // Сохраняем предыдущую позицию для проверки
+        let prevX = el.x;
+        let prevY = el.y;
+        
+        // Плавно обновляем позицию (без snap во время движения)
+        el.x = mmX;
+        el.y = mmY;
+        
+        // Проверяем, не находится ли элемент рядом со стеной
+        if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
+            // Проверяем поворот к стене только если элемент достаточно близко
+            let wallFound = checkAndRotateToWall(el, r);
+            
+            // Если элемент далеко от стен, сбрасываем поворот (опционально)
+            if (!wallFound && el.rotation !== 0) {
+                // Можно оставить последний поворот или сбросить
+                // el.rotation = 0;
             }
+        }
+        
+        // Отрисовываем каждый кадр для плавности
+        if (!touchState.pendingDraw) {
+            touchState.pendingDraw = true;
+            requestAnimationFrame(() => {
+                draw();
+                touchState.pendingDraw = false;
+            });
+        }
+    }
+    return;
+}
 
             if (touchState.isPanning) {
                 const dx = clientX - touchState.touchStartX;
@@ -1113,31 +1141,61 @@ function initTouchHandlers() {
 function checkAndRotateToWall(element, room) {
     if (!room || !room.points || room.points.length < 2) return;
     
-    let closestWall = null;
+    let bestWall = null;
     let minDistance = Infinity;
+    let bestAngle = 0;
     
+    // Ищем ближайшую стену
+    for (let i = 0; i < room.points.length; i++) {
+        let p1 = room.points[i];
+        let p2 = room.points[(i + 1) % room.points.length];
+        
+        // Вычисляем расстояние от элемента до линии стены
+        let distance = distancePointToLine(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
+        
+        // Проверяем, находится ли элемент достаточно близко к стене (200мм = 20см)
+        if (distance < 200 && distance < minDistance) {
+            minDistance = distance;
+            bestWall = { p1, p2 };
+            
+            // Вычисляем угол стены
+            let dx = p2.x - p1.x;
+            let dy = p2.y - p1.y;
+            bestAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+        }
+    }
+    
+    // Если нашли подходящую стену, поворачиваем элемент
+    if (bestWall && minDistance < 200) {
+        // Округляем угол до ближайших 45 градусов для более аккуратного вида
+        // Но можно оставить и точный угол, если нужно
+        element.rotation = Math.round(bestAngle / 45) * 45;
+        
+        // Можно также немного примагнитить элемент к стене
+        // Но пока оставим только поворот
+        console.log("Элемент повернут к стене, угол:", element.rotation);
+    }
+}
+function isElementTouchingWall(element, room) {
+    if (!room || !room.points || room.points.length < 2) return false;
+    
+    // Проверяем расстояние до всех стен
     for (let i = 0; i < room.points.length; i++) {
         let p1 = room.points[i];
         let p2 = room.points[(i + 1) % room.points.length];
         
         let distance = distancePointToLine(element.x, element.y, p1.x, p1.y, p2.x, p2.y);
         
-        if (distance < minDistance && distance < 200) {
-            minDistance = distance;
-            closestWall = { p1, p2 };
+        // Если расстояние меньше 50мм (5см), считаем что касается
+        if (distance < 50) {
+            return true;
         }
     }
-    
-    if (closestWall && minDistance < 200) {
-        let dx = closestWall.p2.x - closestWall.p1.x;
-        let dy = closestWall.p2.y - closestWall.p1.y;
-        let wallAngle = Math.atan2(dy, dx) * 180 / Math.PI;
-        
-        element.rotation = wallAngle;
-    }
+    return false;
 }
 
 function distancePointToLine(px, py, x1, y1, x2, y2) {
+    // Вычисляем расстояние от точки до отрезка
     const A = px - x1;
     const B = py - y1;
     const C = x2 - x1;
@@ -1145,12 +1203,18 @@ function distancePointToLine(px, py, x1, y1, x2, y2) {
     
     const dot = A * C + B * D;
     const len_sq = C * C + D * D;
-    let param = -1;
     
-    if (len_sq !== 0) param = dot / len_sq;
+    // Если стена - это точка (должно быть редко)
+    if (len_sq === 0) {
+        return Math.sqrt(A * A + B * B);
+    }
+    
+    // Находим проекцию точки на линию
+    let param = dot / len_sq;
     
     let xx, yy;
     
+    // Ограничиваем проекцию отрезком
     if (param < 0) {
         xx = x1;
         yy = y1;
@@ -1356,3 +1420,4 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
