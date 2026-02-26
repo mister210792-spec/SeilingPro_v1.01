@@ -64,7 +64,7 @@
     </button>
 </div>
     <div style="display: flex; gap: 10px;">
-        <button onclick="undo()" style="width: auto; padding: 0 15px;">Отменить (Ctrl+Z)</button>
+        <button onclick="undo()" style="width: auto; padding: 0 15px;" ontouchstart="event.stopPropagation()">Отменить (Ctrl+Z)</button>
         <button onclick="exportImage()" style="background: none; color: white; border-color: rgba(255,255,255,0.3); width: auto; padding: 0 15px;">💾 PNG</button>
         <button onclick="printPDF()" style="background: var(--success); color: white; border: none; font-weight: bold; width: auto; padding: 0 15px;">🖨️ Печать PDF</button>
     </div>
@@ -237,6 +237,7 @@
 </body>
 
 </html>
+
 
 
 
