@@ -8,7 +8,7 @@ function requestDraw() {
     if (!drawRequested) {
         drawRequested = true;
         requestAnimationFrame(() => {
-            requestDraw();
+            draw();
             drawRequested = false;
         });
     }
@@ -1424,6 +1424,7 @@ window.onclick = function(event) {
     if (event.target == modal) {
         closeProjectsModal();
     }
+    };
 // --- ГОРЯЧИЕ КЛАВИШИ ---
 document.addEventListener('keydown', (e) => {
     // Сохранить проект: Ctrl+S или Cmd+S
@@ -1472,6 +1473,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 }
+
 
 
 
