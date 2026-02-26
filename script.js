@@ -45,40 +45,26 @@ function selectPlan(plan) {
     document.getElementById('p-pro').classList.toggle('active', plan === 'pro');
 }
 
-function handleLogin() {
+async function handleLogin() {
     const email = document.getElementById('email').value;
     const pass = document.getElementById('pass').value;
-
-    if(!email || !pass) { alert("Введите email и пароль"); return; }
-    if (!auth) { alert("Сервис входа временно недоступен."); return; }
-
-    console.log("Пытаемся войти...");
-
-    auth.signInWithEmailAndPassword(email, pass)
-        .then((userCredential) => {
-            // Успешный вход
-            const user = userCredential.user;
-            console.log("✅ Вход выполнен:", user.email);
-
-            // Теперь нужно получить данные пользователя из Firestore (особенно тариф)
-            // Это сделает функция loadUserPlanFromFirestore, которую вызовет onAuthStateChanged
-            // Но для плавности, можно подготовить currentUser и тут.
-            // Мы положимся на onAuthStateChanged в window.onload, он сам всё подхватит.
-            // Окно входа закроется автоматически, когда сработает onAuthStateChanged.
-
-        })
-        .catch((error) => {
-            console.error("❌ Ошибка входа:", error);
-            let errorMessage = "Ошибка входа: ";
-            if (error.code === 'auth/user-not-found') {
-                errorMessage += "Пользователь не найден.";
-            } else if (error.code === 'auth/wrong-password') {
-                errorMessage += "Неверный пароль.";
-            } else {
-                errorMessage += error.message;
-            }
-            alert(errorMessage);
-        });
+    
+    if(!email || !pass) { 
+        alert("Введите email и пароль"); 
+        return; 
+    }
+    
+    // Получаем кнопку, которая вызвала это действие
+    const button = event?.target || document.querySelector('.auth-btn');
+    
+    await withLoading(button, async () => {
+        if (!auth) { 
+            throw new Error("Сервис входа временно недоступен."); 
+        }
+        
+        await auth.signInWithEmailAndPassword(email, pass);
+        // Остальное сделает onAuthStateChanged
+    });
 }
 
 function handleRegister() {
@@ -228,6 +214,30 @@ function handleLogout() {
     }
 }
 
+// --- ФУНКЦИЯ ДЛЯ ПОКАЗА ЗАГРУЗКИ ---
+async function withLoading(button, action) {
+    // Сохраняем оригинальный текст кнопки
+    const originalText = button.innerHTML;
+    const originalDisabled = button.disabled;
+    
+    // Меняем на индикатор загрузки
+    button.innerHTML = '<span class="loader"></span> Загрузка...';
+    button.disabled = true;
+    button.classList.add('btn-loading');
+    
+    try {
+        // Выполняем действие (сохранение, вход и т.д.)
+        await action();
+    } catch (error) {
+        console.error("Ошибка:", error);
+        alert("Произошла ошибка: " + error.message);
+    } finally {
+        // Возвращаем кнопку в обычное состояние
+        button.innerHTML = originalText;
+        button.disabled = originalDisabled;
+        button.classList.remove('btn-loading');
+    }
+}
 // Проверка при загрузке страницы - ЗАМЕНИ ЭТУ ФУНКЦИЮ ПОЛНОСТЬЮ
 window.onload = () => {
     // Сначала пытаемся инициализировать Firebase сервисы
@@ -609,6 +619,83 @@ function generateFullEstimate() {
     win.document.close();
 }
 
+// --- ЭКСПОРТ В EXCEL ---
+function exportEstimateToExcel() {
+    // Собираем данные для сметы
+    let totalArea = 0, totalPerim = 0;
+    let elements = {};
+    
+    rooms.forEach(r => {
+        let p = 0, a = 0;
+        for(let i=0; i<r.points.length; i++) {
+            let j = (i+1)%r.points.length;
+            p += Math.sqrt((r.points[j].x-r.points[i].x)**2 + (r.points[j].y-r.points[i].y)**2);
+            if(r.closed) a += r.points[i].x * r.points[j].y - r.points[j].x * r.points[i].y;
+        }
+        totalArea += r.closed ? Math.abs(a/2)/1000000 : 0;
+        totalPerim += (p/1000);
+        
+        if (r.elements) {
+            r.elements.forEach(el => {
+                let key = el.type === 'pipe' ? 'pipe' : el.subtype;
+                if (!elements[key]) elements[key] = { count: 0, length: 0 };
+                elements[key].count++;
+                if (el.width) elements[key].length += (el.width / 1000);
+            });
+        }
+    });
+    
+    // Формируем строки для Excel
+    let rows = [
+        ['Наименование', 'Количество', 'Цена (руб)', 'Сумма (руб)']
+    ];
+    
+    // Полотно
+    let priceM2 = prices['Полотно (м2)'] || 0;
+    rows.push(['Полотно (ПВХ)', totalArea.toFixed(2) + ' м²', priceM2, (totalArea * priceM2).toFixed(0)]);
+    
+    // Профиль
+    let priceMP = prices['Профиль (м.п.)'] || 0;
+    rows.push(['Профиль стеновой', totalPerim.toFixed(2) + ' м.п.', priceMP, (totalPerim * priceMP).toFixed(0)]);
+    
+    // Элементы
+    for (let key in elements) {
+        let def = getElementDef(key);
+        let price = prices[key] || 0;
+        let qty = '';
+        let sum = 0;
+        
+        if (key === 'pipe') {
+            qty = elements[key].count + ' шт.';
+            sum = elements[key].count * price;
+        } else if (def && def.type === 'linear') {
+            qty = elements[key].length.toFixed(2) + ' м.п.';
+            sum = elements[key].length * price;
+        } else {
+            qty = elements[key].count + ' шт.';
+            sum = elements[key].count * price;
+        }
+        
+        let name = def?.label || (key === 'pipe' ? 'Обвод трубы' : key);
+        rows.push([name, qty, price, sum.toFixed(0)]);
+    }
+    
+    // ИТОГО
+    let total = rows.slice(2).reduce((acc, row) => acc + parseFloat(row[3] || 0), 0);
+    rows.push(['ИТОГО', '', '', total.toFixed(0)]);
+    
+    // Преобразуем в CSV (формат Excel)
+    let csv = rows.map(row => row.join(';')).join('\n');
+    
+    // Добавляем BOM для правильного отображения русских букв
+    let blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    
+    // Создаем ссылку для скачивания
+    let link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'смета_' + new Date().toLocaleDateString() + '.csv';
+    link.click();
+}
 function saveState() {
     if (history.length > 50) history.shift();
     history.push(JSON.stringify(rooms));
@@ -1370,6 +1457,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 }
+
 
 
 
