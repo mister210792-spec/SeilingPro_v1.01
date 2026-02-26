@@ -1039,7 +1039,7 @@ if (touches.length === 1) {
             touchState.lastPanX = offsetX;
             touchState.lastPanY = offsetY;
         }
-    }, { passive: false });
+    { passive: false });
 
     // Движение пальца
     canvas.addEventListener('touchmove', (e) => {
@@ -1437,6 +1437,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
