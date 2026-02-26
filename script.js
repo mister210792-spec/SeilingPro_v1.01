@@ -1,6 +1,18 @@
 // --- SAAS LOGIC ---
 let currentUser = null;
 let selectedRegPlan = 'free';
+// --- УСКОРИТЕЛЬ РАБОТЫ ---
+let drawRequested = false;
+
+function requestDraw() {
+    if (!drawRequested) {
+        drawRequested = true;
+        requestAnimationFrame(() => {
+            requestDraw();
+            drawRequested = false;
+        });
+    }
+}
 // --- FIREBASE ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (добавь это) ---
 let db; // переменная для базы данных
 let auth; // переменная для авторизации
@@ -189,7 +201,7 @@ function completeAuth() {
     if(currentUser.plan === 'free' && rooms.length > 1) {
         rooms = rooms.slice(0, 1);
         renderTabs();
-        draw();
+        requestDraw();
     } else if (rooms.length === 0) {
         addRoom();
     }
@@ -504,7 +516,7 @@ function mirrorRoom() {
             if (el.rotation) el.rotation = -el.rotation;
         });
     }
-    draw();
+    requestDraw();
 }
 
 function drawSmartGuides(currentX, currentY, excludeId) {
@@ -569,7 +581,7 @@ function undo() {
     if (history.length > 0) {
         rooms = JSON.parse(history.pop());
         if (activeRoom >= rooms.length) activeRoom = Math.max(0, rooms.length - 1);
-        renderTabs(); draw();
+        renderTabs(); requestDraw();
     }
 }
 
@@ -580,9 +592,9 @@ function setTool(tool) {
     if (btn && currentTool !== 'draw') btn.classList.add('active');
 }
 
-function toggleDiagonals() { showDiagonals = !showDiagonals; document.getElementById("toggleDiags").classList.toggle("btn-toggle-active", showDiagonals); draw(); }
+function toggleDiagonals() { showDiagonals = !showDiagonals; document.getElementById("toggleDiags").classList.toggle("btn-toggle-active", showDiagonals); requestDraw(); }
 
-function toggleMeasures() { showMeasures = !showMeasures; document.getElementById("toggleMeasures").classList.toggle("btn-toggle-active", showMeasures); draw(); }
+function toggleMeasures() { showMeasures = !showMeasures; document.getElementById("toggleMeasures").classList.toggle("btn-toggle-active", showMeasures); requestDraw(); }
 
 function renameRoom() {
     let r = rooms[activeRoom];
@@ -670,11 +682,11 @@ function draw(isExport = false) {
                 let line = createLine(mmToPx(el.x - w/2, 'x'), mmToPx(el.y, 'y'), mmToPx(el.x + w/2, 'x'), mmToPx(el.y, 'y'), color, 5);
                 line.setAttribute("stroke-linecap", "round"); g.appendChild(line);
                 let label = renderText(mmToPx(el.x, 'x'), mmToPx(el.y, 'y') - 10, `${w/10} см`, el.type === 'rail' ? "rail-label" : "light-label");
-                if (!isExport) label.onclick = (e) => { e.stopPropagation(); let nl = prompt("Длина (см):", w/10); if (nl && !isNaN(nl)) { saveState(); el.width = nl * 10; draw(); } };
+                if (!isExport) label.onclick = (e) => { e.stopPropagation(); let nl = prompt("Длина (см):", w/10); if (nl && !isNaN(nl)) { saveState(); el.width = nl * 10; requestDraw(); } };
             } else { g.appendChild(drawSymbol(el, def)); }
             if (!isExport) {
                 g.onmousedown = (e) => { e.stopPropagation(); if (e.altKey) { saveState(); let copy = JSON.parse(JSON.stringify(el)); r.elements.push(copy); dragElem = copy; } else { saveState(); dragElem = el; } };
-                g.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.elements.splice(idx, 1); draw(); };
+                g.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.elements.splice(idx, 1); requestDraw(); };
             }
             svg.appendChild(g);
         });
@@ -685,7 +697,7 @@ function draw(isExport = false) {
             c.setAttribute("cx", mmToPx(p.x, 'x')); c.setAttribute("cy", mmToPx(p.y, 'y')); c.setAttribute("r", 5);
             c.setAttribute("fill", "white"); c.setAttribute("stroke", "#e74c3c"); c.setAttribute("stroke-width", 2);
             c.onmousedown = (e) => { e.stopPropagation(); if (currentTool === 'draw') { saveState(); dragId = p.id; } };
-            c.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.points.splice(i, 1); if (r.points.length < 3) r.closed = false; draw(); };
+            c.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.points.splice(i, 1); if (r.points.length < 3) r.closed = false; requestDraw(); };
             svg.appendChild(c);
         });
     }
@@ -734,10 +746,10 @@ function drawElementMeasures(el, room) {
 
 svg.onmousemove = (e) => {
     const rect = svg.getBoundingClientRect(); mousePos.x = e.clientX - rect.left; mousePos.y = e.clientY - rect.top; mousePos.shift = e.shiftKey;
-    if (isPanning) { offsetX = e.clientX - startPanX; offsetY = e.clientY - startPanY; draw(); return; }
-    if (dragId) { let p = rooms[activeRoom].points.find(pt => pt.id === dragId); p.x = snap(pxToMm(mousePos.x, 'x')); p.y = snap(pxToMm(mousePos.y, 'y')); draw(); drawSmartGuides(p.x, p.y, dragId); return; }
-    if (dragElem) { let s = getSnappedPos(pxToMm(mousePos.x, 'x'), pxToMm(mousePos.y, 'y'), dragElem); dragElem.x = s.x; dragElem.y = s.y; draw(); drawSmartGuides(dragElem.x, dragElem.y, null); return; }
-    draw();
+    if (isPanning) { offsetX = e.clientX - startPanX; offsetY = e.clientY - startPanY; requestDraw(); return; }
+    if (dragId) { let p = rooms[activeRoom].points.find(pt => pt.id === dragId); p.x = snap(pxToMm(mousePos.x, 'x')); p.y = snap(pxToMm(mousePos.y, 'y')); requestDraw(); drawSmartGuides(p.x, p.y, dragId); return; }
+    if (dragElem) { let s = getSnappedPos(pxToMm(mousePos.x, 'x'), pxToMm(mousePos.y, 'y'), dragElem); dragElem.x = s.x; dragElem.y = s.y; requestDraw(); drawSmartGuides(dragElem.x, dragElem.y, null); return; }
+    requestDraw();
 };
 
 svg.onmousedown = (e) => { if (e.target === svg && currentTool === 'draw') { isPanning = true; startPanX = e.clientX - offsetX; startPanY = e.clientY - offsetY; } };
@@ -753,15 +765,15 @@ svg.onclick = (e) => {
         let newEl = { type: currentTool, subtype: sub, x: s.x, y: s.y, rotation: 0 };
         const isLinear = def.type === 'linear' || currentTool === 'rail';
         if (isLinear) { let dl = prompt("Длина (см):", "200"); newEl.width = (parseFloat(dl) * 10) || 2000; }
-        r.elements.push(newEl); draw(); return;
+        r.elements.push(newEl); requestDraw(); return;
     }
     if (r.closed || dragId) return;
     let first = r.points[0];
-    if (r.points.length >= 3 && Math.sqrt((e.clientX - rect.left - mmToPx(first.x, 'x'))**2 + (e.clientY - rect.top - mmToPx(first.y, 'y'))**2) < 25) { saveState(); r.closed = true; draw(); return; }
+    if (r.points.length >= 3 && Math.sqrt((e.clientX - rect.left - mmToPx(first.x, 'x'))**2 + (e.clientY - rect.top - mmToPx(first.y, 'y'))**2) < 25) { saveState(); r.closed = true; requestDraw(); return; }
     saveState(); let sX = snap(mmX, first ? first.x : null); let sY = snap(mmY, first ? first.y : null);
     let last = r.points[r.points.length - 1];
     if (last && !e.shiftKey) { if (Math.abs(sX - last.x) > Math.abs(sY - last.y)) sY = last.y; else sX = last.x; }
-    r.points.push({ id: Date.now(), x: sX, y: sY }); draw();
+    r.points.push({ id: Date.now(), x: sX, y: sY }); requestDraw();
 };
 
 svg.addEventListener("wheel", (e) => {
@@ -769,10 +781,10 @@ svg.addEventListener("wheel", (e) => {
     if (e.shiftKey) {
         let r = rooms[activeRoom]; let mmX = pxToMm(mousePos.x, 'x'), mmY = pxToMm(mousePos.y, 'y');
         let target = r.elements?.find(el => Math.sqrt((el.x-mmX)**2 + (el.y-mmY)**2) < 200);
-        if (target) { target.rotation = (target.rotation || 0) + (e.deltaY > 0 ? 1 : -1); draw(); return; }
+        if (target) { target.rotation = (target.rotation || 0) + (e.deltaY > 0 ? 1 : -1); requestDraw(); return; }
     }
     const delta = e.deltaY > 0 ? 0.9 : 1.1; const rect = svg.getBoundingClientRect(); const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    offsetX = x - (x - offsetX) * delta; offsetY = y - (y - offsetY) * delta; scale *= delta; draw();
+    offsetX = x - (x - offsetX) * delta; offsetY = y - (y - offsetY) * delta; scale *= delta; requestDraw();
 }, { passive: false });
 
 function updateStats() {
@@ -813,7 +825,7 @@ function resizeWall(i) {
         saveState(); let nl = n * 10; let ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
         let dx = Math.cos(ang) * nl - (p2.x - p1.x); let dy = Math.sin(ang) * nl - (p2.y - p1.y);
         for (let k = (i + 1) % r.points.length; k < r.points.length; k++) { if (k === 0 && r.closed) continue; r.points[k].x += dx; r.points[k].y += dy; if (k === 0) break; }
-        draw();
+        requestDraw();
     }
 }
 
@@ -834,17 +846,17 @@ function addRoom() {
         alert("В бесплатном плане доступно только 1 помещение. Перейдите на PRO для безлимита.");
         return;
     }
-    saveState(); rooms.push({ name: "Полотно " + (rooms.length + 1), points: [], id: Date.now(), closed: false, elements: [] }); activeRoom = rooms.length - 1; renderTabs(); draw(); 
+    saveState(); rooms.push({ name: "Полотно " + (rooms.length + 1), points: [], id: Date.now(), closed: false, elements: [] }); activeRoom = rooms.length - 1; renderTabs(); requestDraw(); 
 }
 
-function removeRoom(idx, e) { e.stopPropagation(); if (confirm("Удалить это помещение?")) { saveState(); rooms.splice(idx, 1); activeRoom = Math.max(0, activeRoom - 1); if (rooms.length === 0) addRoom(); renderTabs(); draw(); } }
+function removeRoom(idx, e) { e.stopPropagation(); if (confirm("Удалить это помещение?")) { saveState(); rooms.splice(idx, 1); activeRoom = Math.max(0, activeRoom - 1); if (rooms.length === 0) addRoom(); renderTabs(); requestDraw(); } }
 
 function renderTabs() {
     tabs.innerHTML = "";
     rooms.forEach((r, i) => {
         let t = document.createElement("div"); t.className = "tab" + (i === activeRoom ? " active" : "");
         t.innerHTML = `${r.name} <span class="close-tab" onclick="removeRoom(${i}, event)">×</span>`;
-        t.onclick = () => { activeRoom = i; renderTabs(); draw(); }; tabs.appendChild(t);
+        t.onclick = () => { activeRoom = i; renderTabs(); requestDraw(); }; tabs.appendChild(t);
     });
 }
 
@@ -852,7 +864,7 @@ function exportImage() {
     draw(true); let svgData = new XMLSerializer().serializeToString(svg);
     let canvas = document.createElement("canvas"); canvas.width = svg.clientWidth * 2; canvas.height = svg.clientHeight * 2;
     let ctx = canvas.getContext("2d"); let img = new Image();
-    img.onload = () => { ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.scale(2, 2); ctx.drawImage(img, 0, 0); let a = document.createElement("a"); a.download = "plan.png"; a.href = canvas.toDataURL(); a.click(); draw(); };
+    img.onload = () => { ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.scale(2, 2); ctx.drawImage(img, 0, 0); let a = document.createElement("a"); a.download = "plan.png"; a.href = canvas.toDataURL(); a.click(); requestDraw(); };
     img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
 }
 
@@ -870,7 +882,7 @@ function printPDF() {
         page.innerHTML = `<div class="print-header"><h1>${r.name}</h1><p>Площадь: <b>${r.closed ? (Math.abs(a/2)/1000000).toFixed(2) : "0.00"} м²</b> | Периметр: <b>${(p/1000).toFixed(2)} м</b></p></div><div class="print-canvas"></div><table class="print-estimate"><thead><tr><th>Наименование</th><th>Кол-во</th></tr></thead><tbody>${generateEstimateRows(r)}</tbody></table>`;
         page.querySelector('.print-canvas').appendChild(svgClone); printCont.appendChild(page);
     });
-    activeRoom = savedActive; draw(); setTimeout(() => { window.print(); }, 600);
+    activeRoom = savedActive; requestDraw(); setTimeout(() => { window.print(); }, 600);
 }
 
 function generateEstimateRows(room) {
@@ -1003,7 +1015,7 @@ function initTouchHandlers() {
             offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
             offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
 
-            draw();
+            requestDraw();
             return;
         }
 
@@ -1033,7 +1045,7 @@ function initTouchHandlers() {
                     const mmY = pxToMm(clientY, 'y');
                     point.x = mmX;
                     point.y = mmY;
-                    draw();
+                    requestDraw();
                 }
                 return;
             }
@@ -1046,7 +1058,7 @@ function initTouchHandlers() {
                 const mmY = pxToMm(clientY, 'y');
                 el.x = mmX;
                 el.y = mmY;
-                draw();
+                requestDraw();
                 return;
             }
 
@@ -1056,7 +1068,7 @@ function initTouchHandlers() {
                 const dy = clientY - touchState.touchStartY;
                 offsetX = touchState.lastPanX + dx;
                 offsetY = touchState.lastPanY + dy;
-                draw();
+                requestDraw();
             }
         }
     }, { passive: false });
@@ -1209,7 +1221,7 @@ function loadProject(projectId) {
 
                     // Вызываем функции отрисовки
                     if (typeof renderTabs === 'function') renderTabs();
-                    if (typeof draw === 'function') draw();
+                    if (typeof draw === 'function') requestDraw();
 
                     closeProjectsModal();
                     alert(`Проект "${project.name}" загружен.`);
@@ -1263,6 +1275,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
