@@ -585,36 +585,14 @@ function draw(isExport = false) {
     // Очищаем SVG
     svg.innerHTML = ""; 
     
-    // Рисуем сетку (только не в режиме экспорта)
+    // Рисуем сетку только если не в режиме экспорта
     if (!isExport) drawGrid();
     
     // Получаем активную комнату
     let r = rooms[activeRoom]; 
     if (!r) return;
     
-    // Оптимизация: если идет перетаскивание элемента, используем requestAnimationFrame
-    if (dragElem || touchState.dragElem) {
-        if (rafPending) return;
-        rafPending = true;
-        setTimeout(() => { rafPending = false; }, 16);
-    }
-    
-    svg.innerHTML = ""; 
-    if (!isExport) drawGrid();
-    
-    // Оптимизация для мобильных - пропускаем кадры если не успеваем
-    if (isMobile && touchState.dragElem && !isExport) {
-        if (touchState.skipDraw) {
-            touchState.skipDraw = false;
-            return;
-        }
-        touchState.skipDraw = true;
-    }
-    
-    svg.innerHTML = ""; 
-    if (!isExport) drawGrid();
-    svg.innerHTML = ""; if (!isExport) drawGrid();
-    let r = rooms[activeRoom]; if (!r) return;
+    // Рисуем диагонали
     if (r.closed && r.points.length > 3 && showDiagonals) {
         for (let i = 0; i < r.points.length; i++) {
             for (let j = i + 2; j < r.points.length; j++) {
@@ -627,6 +605,7 @@ function draw(isExport = false) {
         }
     }
     
+    // Рисуем пунктирную линию при рисовании
     if (r.points.length > 0 && !r.closed && !dragId && !dragElem && !isExport && currentTool === 'draw') {
         if (typeof window.lastDrawTime === 'undefined') window.lastDrawTime = 0;
         const now = Date.now();
@@ -683,11 +662,16 @@ function draw(isExport = false) {
         }
     }
     
+    // Рисуем стены
     if (r.points.length > 0) {
         let pts = r.points.map(p => `${mmToPx(p.x, 'x')},${mmToPx(p.y, 'y')}`).join(" ");
         let poly = document.createElementNS("http://www.w3.org/2000/svg", r.closed ? "polygon" : "polyline");
-        poly.setAttribute("points", pts); poly.setAttribute("fill", r.closed ? "rgba(0,188,212,0.05)" : "none");
-        poly.setAttribute("stroke", "#2c3e50"); poly.setAttribute("stroke-width", 2.5); svg.appendChild(poly);
+        poly.setAttribute("points", pts); 
+        poly.setAttribute("fill", r.closed ? "rgba(0,188,212,0.05)" : "none");
+        poly.setAttribute("stroke", "#2c3e50"); 
+        poly.setAttribute("stroke-width", 2.5); 
+        svg.appendChild(poly);
+        
         r.points.forEach((p, i) => {
             if (!r.closed && i === r.points.length - 1) return;
             let pNext = r.points[(i + 1) % r.points.length];
@@ -698,6 +682,8 @@ function draw(isExport = false) {
             }
         });
     }
+    
+    // Рисуем элементы
     if (r.elements) {
         r.elements.forEach((el, idx) => {
             let def = getElementDef(el.subtype);
@@ -706,32 +692,80 @@ function draw(isExport = false) {
             const isLinear = def.type === 'linear' || el.type === 'rail';
             if (r.closed && showMeasures) drawElementMeasures(el, r);
             if (isLinear) {
-                let w = el.width || 2000; let color = el.type === 'rail' ? "#fb8c00" : (el.subtype === 'TRACK' ? "#333" : "var(--light)");
+                let w = el.width || 2000; 
+                let color = el.type === 'rail' ? "#fb8c00" : (el.subtype === 'TRACK' ? "#333" : "var(--light)");
                 let line = createLine(mmToPx(el.x - w/2, 'x'), mmToPx(el.y, 'y'), mmToPx(el.x + w/2, 'x'), mmToPx(el.y, 'y'), color, 5);
-                line.setAttribute("stroke-linecap", "round"); g.appendChild(line);
+                line.setAttribute("stroke-linecap", "round"); 
+                g.appendChild(line);
                 let label = renderText(mmToPx(el.x, 'x'), mmToPx(el.y, 'y') - 10, `${w/10} см`, el.type === 'rail' ? "rail-label" : "light-label");
-                if (!isExport) label.onclick = (e) => { e.stopPropagation(); let nl = prompt("Длина (см):", w/10); if (nl && !isNaN(nl)) { saveState(); el.width = nl * 10; draw(); } };
-            } else { g.appendChild(drawSymbol(el, def)); }
+                if (!isExport) label.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    let nl = prompt("Длина (см):", w/10); 
+                    if (nl && !isNaN(nl)) { 
+                        saveState(); 
+                        el.width = nl * 10; 
+                        draw(); 
+                    } 
+                };
+            } else { 
+                g.appendChild(drawSymbol(el, def)); 
+            }
             if (!isExport) {
-                g.onmousedown = (e) => { e.stopPropagation(); if (e.altKey) { saveState(); let copy = JSON.parse(JSON.stringify(el)); r.elements.push(copy); dragElem = copy; } else { saveState(); dragElem = el; } };
-                g.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.elements.splice(idx, 1); draw(); };
+                g.onmousedown = (e) => { 
+                    e.stopPropagation(); 
+                    if (e.altKey) { 
+                        saveState(); 
+                        let copy = JSON.parse(JSON.stringify(el)); 
+                        r.elements.push(copy); 
+                        dragElem = copy; 
+                    } else { 
+                        saveState(); 
+                        dragElem = el; 
+                    } 
+                };
+                g.oncontextmenu = (e) => { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    saveState(); 
+                    r.elements.splice(idx, 1); 
+                    draw(); 
+                };
             }
             svg.appendChild(g);
         });
     }
+    
+    // Рисуем точки вершин
     if (!isExport) {
         r.points.forEach((p, i) => {
             let c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-            c.setAttribute("cx", mmToPx(p.x, 'x')); c.setAttribute("cy", mmToPx(p.y, 'y')); c.setAttribute("r", 5);
-            c.setAttribute("fill", "white"); c.setAttribute("stroke", "#e74c3c"); c.setAttribute("stroke-width", 2);
-            c.onmousedown = (e) => { e.stopPropagation(); if (currentTool === 'draw') { saveState(); dragId = p.id; } };
-            c.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); saveState(); r.points.splice(i, 1); if (r.points.length < 3) r.closed = false; draw(); };
+            c.setAttribute("cx", mmToPx(p.x, 'x')); 
+            c.setAttribute("cy", mmToPx(p.y, 'y')); 
+            c.setAttribute("r", 5);
+            c.setAttribute("fill", "white"); 
+            c.setAttribute("stroke", "#e74c3c"); 
+            c.setAttribute("stroke-width", 2);
+            c.onmousedown = (e) => { 
+                e.stopPropagation(); 
+                if (currentTool === 'draw') { 
+                    saveState(); 
+                    dragId = p.id; 
+                } 
+            };
+            c.oncontextmenu = (e) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                saveState(); 
+                r.points.splice(i, 1); 
+                if (r.points.length < 3) r.closed = false; 
+                draw(); 
+            };
             svg.appendChild(c);
         });
     }
+    
     updateStats();
 }
-
 function drawSymbol(el, def) {
     let cx = mmToPx(el.x, 'x'), cy = mmToPx(el.y, 'y');
     let s = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -1426,6 +1460,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
 
 
 
