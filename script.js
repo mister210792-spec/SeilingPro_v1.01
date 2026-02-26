@@ -1059,7 +1059,7 @@ function generateEstimateRows(room) {
     });
     return Object.entries(counts).map(([n, c]) => `<tr><td>${n}</td><td>${c} шт.</td></tr>`).join('');
 }
-// --- Мобильные обработчики (pinch, pan, drag) ---
+// --- МОБИЛЬНЫЕ ОБРАБОТЧИКИ (улучшенная версия) ---
 function initTouchHandlers() {
     const canvas = document.getElementById('canvas');
     if (!canvas) return;
@@ -1071,6 +1071,14 @@ function initTouchHandlers() {
         const dy = touches[0].clientY - touches[1].clientY;
         return Math.sqrt(dx * dx + dy * dy);
     }
+    
+    // Вспомогательная функция: угол между двумя пальцами
+    function getTouchAngle(touches) {
+        if (touches.length < 2) return 0;
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.atan2(dy, dx) * 180 / Math.PI;
+    }
 
     // Начало касания
     canvas.addEventListener('touchstart', (e) => {
@@ -1078,82 +1086,133 @@ function initTouchHandlers() {
         e.preventDefault();
         
         const touches = e.touches;
+        const rect = canvas.getBoundingClientRect();
 
-        // Сброс состояний
+        // Сброс предыдущих состояний
+        clearTimeout(touchState.longPressTimer);
+        touchState.isLongPress = false;
         touchState.moved = false;
+        touchState.isPinching = false;
+        touchState.isRotating = false;
         touchState.dragId = null;
         touchState.dragElem = null;
-        touchState.targetLabel = null; // для меток длины
+        touchState.rotationElem = null;
 
+        // Два пальца - зум или поворот
         if (touches.length === 2) {
-            // Начало зума
             touchState.isPinching = true;
             touchState.initialDistance = getTouchDistance(touches);
+            touchState.initialAngle = getTouchAngle(touches);
             touchState.initialScale = scale;
             touchState.initialOffsetX = offsetX;
             touchState.initialOffsetY = offsetY;
-
-            const rect = canvas.getBoundingClientRect();
+            
+            // Центр между пальцами
             const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
             const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
-            touchState.pinchCenterX = centerX;
-            touchState.pinchCenterY = centerY;
-            // Мировые координаты центра в начале жеста
             touchState.pinchCenterMM_X = (centerX - offsetX) / (MM_TO_PX * scale);
             touchState.pinchCenterMM_Y = (centerY - offsetY) / (MM_TO_PX * scale);
+            
+            // Проверяем, есть ли линейный элемент под центром касания для поворота
+            const mmX = pxToMm(centerX, 'x');
+            const mmY = pxToMm(centerY, 'y');
+            const r = rooms[activeRoom];
+            
+            if (r && r.elements) {
+                // Ищем линейный элемент (карниз, световую линию и т.д.)
+                const linearElem = r.elements.find(el => {
+                    const def = getElementDef(el.subtype);
+                    const isLinear = def.type === 'linear' || el.type === 'rail';
+                    if (!isLinear) return false;
+                    
+                    // Проверяем, попадает ли центр между пальцами в область элемента
+                    const dx = mmX - el.x;
+                    const dy = mmY - el.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    return distance < 200; // Радиус захвата для поворота
+                });
+                
+                if (linearElem) {
+                    touchState.isRotating = true;
+                    touchState.rotationElem = linearElem;
+                    touchState.initialElemRotation = linearElem.rotation || 0;
+                    console.log("Режим поворота для:", linearElem);
+                }
+            }
             return;
         }
 
+        // Один палец - проверяем, что под пальцем
         if (touches.length === 1) {
             const touch = touches[0];
-            const rect = canvas.getBoundingClientRect();
             const clientX = touch.clientX - rect.left;
             const clientY = touch.clientY - rect.top;
+            
+            // Сохраняем начальные координаты
+            touchState.touchStartX = clientX;
+            touchState.touchStartY = clientY;
+            touchState.startMM_X = pxToMm(clientX, 'x');
+            touchState.startMM_Y = pxToMm(clientY, 'y');
 
-            // Проверка: не попали ли мы в текстовую метку длины стены
+            // Проверяем, не попали ли мы в метку длины
             const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (elemUnderTouch && elemUnderTouch.classList && elemUnderTouch.classList.contains('length-label')) {
+            if (elemUnderTouch && elemUnderTouch.classList && 
+                (elemUnderTouch.classList.contains('length-label') || 
+                 elemUnderTouch.classList.contains('rail-label') ||
+                 elemUnderTouch.classList.contains('light-label'))) {
                 touchState.targetLabel = elemUnderTouch;
-                touchState.touchStartX = clientX;
-                touchState.touchStartY = clientY;
-                return; // Не начинаем pan
+                return;
             }
 
             const r = rooms[activeRoom];
             if (r) {
-                // Проверка на точку (вершину)
+                // Проверяем, не попали ли в точку (вершину)
                 for (let pt of r.points) {
                     const cx = mmToPx(pt.x, 'x');
                     const cy = mmToPx(pt.y, 'y');
-                    if (Math.hypot(clientX - cx, clientY - cy) < 10) {
-                        touchState.dragId = pt.id;
-                        touchState.touchStartX = clientX;
-                        touchState.touchStartY = clientY;
-                        saveState();
-                        return;
+                    if (Math.hypot(clientX - cx, clientY - cy) < 20) {
+                        touchState.potentialDragId = pt.id;
+                        touchState.potentialDragType = 'point';
+                        break;
                     }
                 }
-                // Проверка на элемент (светильник, трубу и т.д.)
-                if (r.elements) {
+                
+                // Если не нашли точку, проверяем элементы
+                if (!touchState.potentialDragId && r.elements) {
                     for (let el of r.elements) {
                         const cx = mmToPx(el.x, 'x');
                         const cy = mmToPx(el.y, 'y');
-                        if (Math.hypot(clientX - cx, clientY - cy) < 20) {
-                            touchState.dragElem = el;
-                            touchState.touchStartX = clientX;
-                            touchState.touchStartY = clientY;
-                            saveState();
-                            return;
+                        if (Math.hypot(clientX - cx, clientY - cy) < 30) {
+                            touchState.potentialDragElem = el;
+                            touchState.potentialDragType = 'element';
+                            break;
                         }
                     }
                 }
             }
-            // Ничего не нашли — начинаем pan
-            touchState.isPanning = true;
-            touchState.touchStartX = clientX;
-            touchState.touchStartY = clientY;
-            touchState.lastPanX = offsetX;
-            touchState.lastPanY = offsetY;
+
+            // Запускаем таймер долгого нажатия (500ms)
+            touchState.longPressTimer = setTimeout(() => {
+                if (!touchState.moved) {
+                    touchState.isLongPress = true;
+                    
+                    // Активируем перемещение если есть что перемещать
+                    if (touchState.potentialDragId) {
+                        touchState.dragId = touchState.potentialDragId;
+                        saveState();
+                        console.log("Долгое нажатие: перемещение точки");
+                    } else if (touchState.potentialDragElem) {
+                        touchState.dragElem = touchState.potentialDragElem;
+                        saveState();
+                        console.log("Долгое нажатие: перемещение элемента");
+                    }
+                    
+                    // Визуальная обратная связь (вибрация если поддерживается)
+                    if (window.navigator && window.navigator.vibrate) {
+                        window.navigator.vibrate(20);
+                    }
+                }
+            }, 500);
         }
     }, { passive: false });
 
@@ -1165,23 +1224,37 @@ function initTouchHandlers() {
         const touches = e.touches;
         const rect = canvas.getBoundingClientRect();
 
-        // --- Два пальца: зум ---
-        if (touches.length === 2 && touchState.isPinching) {
-            const currentDistance = getTouchDistance(touches);
-            if (currentDistance === 0) return;
+        // --- Два пальца: зум или поворот ---
+        if (touches.length === 2) {
+            // Если мы в режиме поворота и есть элемент для поворота
+            if (touchState.isRotating && touchState.rotationElem) {
+                const currentAngle = getTouchAngle(touches);
+                const angleDiff = currentAngle - touchState.initialAngle;
+                
+                // Поворачиваем элемент
+                touchState.rotationElem.rotation = (touchState.initialElemRotation + angleDiff) % 360;
+                requestDraw();
+                return;
+            }
+            
+            // Иначе обычный зум
+            if (touchState.isPinching) {
+                const currentDistance = getTouchDistance(touches);
+                if (currentDistance === 0) return;
 
-            const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
-            scale = newScale;
+                const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
+                scale = Math.max(0.05, Math.min(2, newScale)); // Ограничиваем масштаб
 
-            // Текущий центр между пальцами (в координатах SVG)
-            const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
-            const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
+                // Текущий центр между пальцами
+                const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
+                const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
 
-            // Новые offset: точка, которая была под центром в начале, остаётся под центром
-            offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
-            offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
+                // Обновляем offset
+                offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
+                offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
 
-            requestDraw();
+                requestDraw();
+            }
             return;
         }
 
@@ -1191,18 +1264,25 @@ function initTouchHandlers() {
             const clientX = touch.clientX - rect.left;
             const clientY = touch.clientY - rect.top;
 
-            // Порог движения
-            if (!touchState.moved) {
-                const dx = clientX - touchState.touchStartX;
-                const dy = clientY - touchState.touchStartY;
-                if (Math.hypot(dx, dy) > touchState.MOVE_THRESHOLD) {
-                    touchState.moved = true;
-                } else {
-                    return; // ещё не сдвинули
+            // Вычисляем перемещение
+            const dx = clientX - touchState.touchStartX;
+            const dy = clientY - touchState.touchStartY;
+            const distance = Math.hypot(dx, dy);
+
+            // Если перемещение превысило порог, отменяем долгое нажатие
+            if (distance > touchState.MOVE_THRESHOLD) {
+                clearTimeout(touchState.longPressTimer);
+                touchState.moved = true;
+                
+                // Если у нас нет активного перемещения, начинаем pan
+                if (!touchState.dragId && !touchState.dragElem) {
+                    touchState.isPanning = true;
+                    touchState.lastPanX = offsetX;
+                    touchState.lastPanY = offsetY;
                 }
             }
 
-            // Перетаскивание точки
+            // Перетаскивание точки (активируется только после долгого нажатия)
             if (touchState.dragId) {
                 const r = rooms[activeRoom];
                 const point = r.points.find(p => p.id === touchState.dragId);
@@ -1216,24 +1296,20 @@ function initTouchHandlers() {
                 return;
             }
 
-            // Перетаскивание элемента
+            // Перетаскивание элемента (активируется только после долгого нажатия)
             if (touchState.dragElem) {
-                const r = rooms[activeRoom];
-                const el = touchState.dragElem;
                 const mmX = pxToMm(clientX, 'x');
                 const mmY = pxToMm(clientY, 'y');
-                el.x = mmX;
-                el.y = mmY;
+                touchState.dragElem.x = mmX;
+                touchState.dragElem.y = mmY;
                 requestDraw();
                 return;
             }
 
-            // Pan
+            // Pan (перемещение по холсту)
             if (touchState.isPanning) {
-                const dx = clientX - touchState.touchStartX;
-                const dy = clientY - touchState.touchStartY;
-                offsetX = touchState.lastPanX + dx;
-                offsetY = touchState.lastPanY + dy;
+                offsetX = touchState.lastPanX + (clientX - touchState.touchStartX);
+                offsetY = touchState.lastPanY + (clientY - touchState.touchStartY);
                 requestDraw();
             }
         }
@@ -1244,19 +1320,13 @@ function initTouchHandlers() {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
 
-        // Если было перетаскивание - не обрабатываем как клик
-        if (touchState.moved) {
-            // Сбрасываем состояния и выходим
-            touchState.isPinching = false;
-            touchState.isPanning = false;
-            touchState.dragId = null;
-            touchState.dragElem = null;
-            touchState.targetLabel = null;
-            touchState.moved = false;
-            return;
-        }
+        // Отменяем таймер долгого нажатия
+        clearTimeout(touchState.longPressTimer);
 
-        if (!touchState.moved && !touchState.isPinching && !touchState.dragId && !touchState.dragElem) {
+        // Если это был тап (короткое нажатие без перемещения)
+        if (!touchState.moved && !touchState.dragId && !touchState.dragElem && 
+            !touchState.isPinching && !touchState.isRotating) {
+            
             if (touchState.targetLabel) {
                 // Эмулируем клик по метке длины
                 const clickEvent = new MouseEvent('click', {
@@ -1265,7 +1335,7 @@ function initTouchHandlers() {
                 });
                 touchState.targetLabel.dispatchEvent(clickEvent);
             } else {
-                // Эмулируем клик по canvas (добавление точки)
+                // Эмулируем клик по canvas для добавления точки
                 const clickEvent = new MouseEvent('click', {
                     clientX: touchState.touchStartX + canvas.getBoundingClientRect().left,
                     clientY: touchState.touchStartY + canvas.getBoundingClientRect().top
@@ -1274,25 +1344,38 @@ function initTouchHandlers() {
             }
         }
 
-        // Сброс состояний
+        // Сброс всех состояний
         touchState.isPinching = false;
+        touchState.isRotating = false;
         touchState.isPanning = false;
         touchState.dragId = null;
         touchState.dragElem = null;
+        touchState.rotationElem = null;
+        touchState.potentialDragId = null;
+        touchState.potentialDragElem = null;
         touchState.targetLabel = null;
         touchState.moved = false;
+        touchState.isLongPress = false;
     }, { passive: false });
 
     // Отмена касания
     canvas.addEventListener('touchcancel', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
         e.preventDefault();
+        
+        clearTimeout(touchState.longPressTimer);
+        
         touchState.isPinching = false;
+        touchState.isRotating = false;
         touchState.isPanning = false;
         touchState.dragId = null;
         touchState.dragElem = null;
+        touchState.rotationElem = null;
+        touchState.potentialDragId = null;
+        touchState.potentialDragElem = null;
         touchState.targetLabel = null;
         touchState.moved = false;
+        touchState.isLongPress = false;
     }, { passive: false });
 }
 // --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
@@ -1528,6 +1611,7 @@ document.addEventListener('touchcancel', () => {
     touchState.moved = false;
 });
 });
+
 
 
 
