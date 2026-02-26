@@ -1010,9 +1010,12 @@ function initTouchHandlers() {
 
    canvas.addEventListener('touchstart', (e) => {
     if (document.getElementById('auth-overlay').style.display !== 'none') return;
-    e.preventDefault();
+    
+    // НЕ вызываем preventDefault для всего подряд
+    // Вызываем только если действительно работаем с холстом
+    
     const touches = e.touches;
-
+    
     // Сброс состояний
     touchState.moved = false;
     touchState.dragId = null;
@@ -1020,7 +1023,9 @@ function initTouchHandlers() {
     touchState.targetLabel = null;
 
     if (touches.length === 2) {
-        // Начало зума
+        // Для зума - предотвращаем скролл
+        e.preventDefault();
+        
         touchState.isPinching = true;
         touchState.initialDistance = getTouchDistance(touches);
         touchState.initialScale = scale;
@@ -1049,6 +1054,7 @@ function initTouchHandlers() {
         // Проверка на метку длины
         const elemUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
         if (elemUnderTouch && elemUnderTouch.classList && elemUnderTouch.classList.contains('length-label')) {
+            e.preventDefault(); // Предотвращаем скролл при клике на метку
             touchState.targetLabel = elemUnderTouch;
             touchState.touchStartX = clientX;
             touchState.touchStartY = clientY;
@@ -1062,6 +1068,7 @@ function initTouchHandlers() {
                 const cx = mmToPx(pt.x, 'x');
                 const cy = mmToPx(pt.y, 'y');
                 if (Math.hypot(clientX - cx, clientY - cy) < 10) {
+                    e.preventDefault(); // Предотвращаем скролл при захвате точки
                     touchState.dragId = pt.id;
                     touchState.touchStartX = clientX;
                     touchState.touchStartY = clientY;
@@ -1075,6 +1082,7 @@ function initTouchHandlers() {
                     const cx = mmToPx(el.x, 'x');
                     const cy = mmToPx(el.y, 'y');
                     if (Math.hypot(clientX - cx, clientY - cy) < 20) {
+                        e.preventDefault(); // Предотвращаем скролл при захвате элемента
                         touchState.dragElem = el;
                         touchState.touchStartX = clientX;
                         touchState.touchStartY = clientY;
@@ -1084,7 +1092,10 @@ function initTouchHandlers() {
                 }
             }
         }
-        // Ничего не нашли - начинаем pan
+        
+        // Если не нашли ни точки ни элемента - начинаем pan
+        // Для pan тоже предотвращаем скролл
+        e.preventDefault();
         touchState.isPanning = true;
         touchState.touchStartX = clientX;
         touchState.touchStartY = clientY;
@@ -1096,15 +1107,12 @@ function initTouchHandlers() {
     canvas.addEventListener('touchmove', (e) => {
     if (document.getElementById('auth-overlay').style.display !== 'none') return;
     
-    // ПРЕДОТВРАЩАЕМ СКРОЛЛ - это самое важное!
-    e.preventDefault();
-    
     const touches = e.touches;
     const rect = canvas.getBoundingClientRect();
 
     // --- Два пальца: зум ---
     if (touches.length === 2 && touchState.isPinching) {
-        e.preventDefault();
+        e.preventDefault(); // Предотвращаем скролл при зуме
         const currentDistance = getTouchDistance(touches);
         if (currentDistance === 0) return;
 
@@ -1123,31 +1131,34 @@ function initTouchHandlers() {
 
     // --- Один палец ---
     if (touches.length === 1) {
-        e.preventDefault(); // Дважды предотвращаем скролл для надежности
-        
         const touch = touches[0];
         const clientX = touch.clientX - rect.left;
         const clientY = touch.clientY - rect.top;
         
-        // Сохраняем позицию для рисования
+        // Сохраняем позицию
         if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
         touchState.lastTouchPos.x = clientX;
         touchState.lastTouchPos.y = clientY;
 
-        // Сразу помечаем как moved, чтобы не было задержки
-        if (!touchState.moved) {
-            const dx = clientX - touchState.touchStartX;
-            const dy = clientY - touchState.touchStartY;
-            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) { // Уменьшил порог
-                touchState.moved = true;
-            } else {
-                return;
+        // Проверяем, двигаем ли мы что-то
+        const isDragging = touchState.dragId || touchState.dragElem || touchState.isPanning;
+        
+        if (isDragging) {
+            e.preventDefault(); // Предотвращаем скролл только если действительно двигаем
+            
+            if (!touchState.moved) {
+                const dx = clientX - touchState.touchStartX;
+                const dy = clientY - touchState.touchStartY;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                    touchState.moved = true;
+                } else {
+                    return;
+                }
             }
         }
 
         // Перетаскивание точки
         if (touchState.dragId) {
-            e.preventDefault();
             const r = rooms[activeRoom];
             const point = r.points.find(p => p.id === touchState.dragId);
             if (point) {
@@ -1160,37 +1171,33 @@ function initTouchHandlers() {
             return;
         }
 
-        // Перетаскивание элемента - УПРОЩЕННАЯ ВЕРСИЯ
+        // Перетаскивание элемента
         if (touchState.dragElem) {
-            e.preventDefault();
             const r = rooms[activeRoom];
             const el = touchState.dragElem;
             
-            // Прямое обновление позиции без лишних проверок
             el.x = pxToMm(clientX, 'x');
             el.y = pxToMm(clientY, 'y');
             
-            // Мгновенная проверка поворота
             if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
                 checkAndRotateToWall(el, r);
             }
             
-            // Немедленная отрисовка
             draw();
             return;
         }
 
-        // Pan (перемещение по холсту)
+        // Pan
         if (touchState.isPanning) {
-            e.preventDefault();
             const dx = clientX - touchState.touchStartX;
             const dy = clientY - touchState.touchStartY;
             offsetX = touchState.lastPanX + dx;
             offsetY = touchState.lastPanY + dy;
             draw();
+            return;
         }
     }
-}, { passive: false }); // passive: false ОБЯЗАТЕЛЬНО для preventDefault
+}, { passive: false });
 
     canvas.addEventListener('touchend', (e) => {
         if (document.getElementById('auth-overlay').style.display !== 'none') return;
@@ -1483,6 +1490,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
 
 
 
