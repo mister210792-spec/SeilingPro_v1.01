@@ -1258,62 +1258,78 @@ function initTouchHandlers() {
             return;
         }
 
-        // --- Один палец ---
-        if (touches.length === 1) {
-            const touch = touches[0];
-            const clientX = touch.clientX - rect.left;
-            const clientY = touch.clientY - rect.top;
+       // --- Один палец ---
+if (touches.length === 1) {
+    const touch = touches[0];
+    const clientX = touch.clientX - rect.left;
+    const clientY = touch.clientY - rect.top;
 
-            // Вычисляем перемещение
-            const dx = clientX - touchState.touchStartX;
-            const dy = clientY - touchState.touchStartY;
-            const distance = Math.hypot(dx, dy);
+    // Вычисляем перемещение от начальной точки
+    const dx = clientX - touchState.touchStartX;
+    const dy = clientY - touchState.touchStartY;
+    const distance = Math.hypot(dx, dy);
 
-            // Если перемещение превысило порог, отменяем долгое нажатие
-            if (distance > touchState.MOVE_THRESHOLD) {
-                clearTimeout(touchState.longPressTimer);
-                touchState.moved = true;
-                
-                // Если у нас нет активного перемещения, начинаем pan
-                if (!touchState.dragId && !touchState.dragElem) {
-                    touchState.isPanning = true;
-                    touchState.lastPanX = offsetX;
-                    touchState.lastPanY = offsetY;
-                }
-            }
-
-            // Перетаскивание точки (активируется только после долгого нажатия)
-            if (touchState.dragId) {
-                const r = rooms[activeRoom];
-                const point = r.points.find(p => p.id === touchState.dragId);
-                if (point) {
-                    const mmX = pxToMm(clientX, 'x');
-                    const mmY = pxToMm(clientY, 'y');
-                    point.x = mmX;
-                    point.y = mmY;
-                    requestDraw();
-                }
-                return;
-            }
-
-            // Перетаскивание элемента (активируется только после долгого нажатия)
-            if (touchState.dragElem) {
+    // ✅ ВАЖНО: Если у нас уже есть активное перемещение, сразу двигаем
+    if (touchState.dragId || touchState.dragElem) {
+        // Перетаскивание точки
+        if (touchState.dragId) {
+            const r = rooms[activeRoom];
+            const point = r.points.find(p => p.id === touchState.dragId);
+            if (point) {
                 const mmX = pxToMm(clientX, 'x');
                 const mmY = pxToMm(clientY, 'y');
-                touchState.dragElem.x = mmX;
-                touchState.dragElem.y = mmY;
+                point.x = mmX;
+                point.y = mmY;
                 requestDraw();
-                return;
             }
+            return;
+        }
 
-            // Pan (перемещение по холсту)
-            if (touchState.isPanning) {
-                offsetX = touchState.lastPanX + (clientX - touchState.touchStartX);
-                offsetY = touchState.lastPanY + (clientY - touchState.touchStartY);
-                requestDraw();
+        // Перетаскивание элемента
+        if (touchState.dragElem) {
+            const mmX = pxToMm(clientX, 'x');
+            const mmY = pxToMm(clientY, 'y');
+            touchState.dragElem.x = mmX;
+            touchState.dragElem.y = mmY;
+            requestDraw();
+            return;
+        }
+    }
+
+    // Если перемещение превысило порог, отменяем долгое нажатие
+    if (distance > touchState.MOVE_THRESHOLD) {
+        clearTimeout(touchState.longPressTimer);
+        touchState.moved = true;
+        
+        // ✅ ИСПРАВЛЕНИЕ: Если было долгое нажатие и мы начали двигать
+        if (touchState.isLongPress) {
+            // Активируем перемещение если оно еще не активно
+            if (!touchState.dragId && !touchState.dragElem) {
+                if (touchState.potentialDragId) {
+                    touchState.dragId = touchState.potentialDragId;
+                    saveState();
+                } else if (touchState.potentialDragElem) {
+                    touchState.dragElem = touchState.potentialDragElem;
+                    saveState();
+                }
+            }
+        } else {
+            // Если не было долгого нажатия, просто перемещаем холст
+            if (!touchState.dragId && !touchState.dragElem) {
+                touchState.isPanning = true;
+                touchState.lastPanX = offsetX;
+                touchState.lastPanY = offsetY;
             }
         }
-    }, { passive: false });
+    }
+
+    // Pan (перемещение по холсту)
+    if (touchState.isPanning) {
+        offsetX = touchState.lastPanX + (clientX - touchState.touchStartX);
+        offsetY = touchState.lastPanY + (clientY - touchState.touchStartY);
+        requestDraw();
+    }
+}
 
     // Конец касания
     canvas.addEventListener('touchend', (e) => {
@@ -1611,6 +1627,7 @@ document.addEventListener('touchcancel', () => {
     touchState.moved = false;
 });
 });
+
 
 
 
