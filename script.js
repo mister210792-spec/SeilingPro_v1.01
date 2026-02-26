@@ -1396,8 +1396,7 @@ if (touches.length === 1) {
         touchState.moved = false;
         touchState.isLongPress = false;
     }, { passive: false });
-} 
-}
+});
 //--- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
@@ -1610,6 +1609,7 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
+
 
 
 
