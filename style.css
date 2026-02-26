@@ -106,7 +106,7 @@
 /* --- МОБИЛЬНАЯ АДАПТАЦИЯ (ПЕРЕРАБОТАННАЯ) --- */
 @media (max-width: 768px) {
     :root {
-        --panel-w: 85%; /* Ширина боковой панели */
+        --panel-w: 85%;
     }
 
     body {
@@ -116,10 +116,10 @@
         height: 100%;
     }
 
-    /* Шапка - скрыта по умолчанию */
+    /* Шапка - полностью переработана */
     .header {
         position: fixed;
-        top: -100px; /* Полностью скрыта сверху */
+        top: -200px;
         left: 0;
         right: 0;
         background: var(--dark);
@@ -130,42 +130,109 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         flex-direction: column;
         gap: 12px;
-        align-items: flex-start;
         border-bottom: 2px solid var(--primary);
     }
 
     .header.visible {
-        top: 0; /* Показываем при активации */
+        top: 0;
     }
 
     .header h2 {
         font-size: 16px;
+        margin: 0;
+        text-align: left;
         width: 100%;
-        text-align: center;
-        margin-bottom: 5px;
     }
 
     .header .user-info {
         width: 100%;
+        display: flex;
         justify-content: space-between;
-        flex-wrap: wrap;
+        align-items: center;
         gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .header .plan-status {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .header #header-user {
+        font-size: 14px;
     }
 
     .header .project-controls {
         width: 100%;
-        margin-left: 0;
-        padding-left: 0;
-        border-left: none;
+        display: flex;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        border: none;
         justify-content: space-between;
+    }
+
+    .header .project-controls button {
+        flex: 1;
+        padding: 12px 8px;
+        font-size: 14px;
+        height: auto;
+        min-height: 44px;
+        border-radius: 8px;
+        background: white;
+        color: var(--dark);
+        border: 1px solid rgba(255,255,255,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        margin: 0;
+    }
+
+    .header .project-controls button:first-child {
+        background: var(--success);
+        color: white;
+        border: none;
     }
 
     .header > div:last-child {
         width: 100%;
+        display: flex;
+        gap: 8px;
         justify-content: space-between;
     }
 
-    /* Кнопка меню (3 точки) */
+    .header > div:last-child button {
+        flex: 1;
+        padding: 12px 8px;
+        font-size: 14px;
+        height: auto;
+        min-height: 44px;
+        border-radius: 8px;
+        margin: 0;
+        white-space: nowrap;
+    }
+
+    .header > div:last-child button:first-child {
+        background: white;
+        color: var(--dark);
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .header > div:last-child button:last-child {
+        background: var(--success);
+        color: white;
+        border: none;
+        font-weight: bold;
+    }
+
+    .header > div:last-child button:nth-child(2) {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    /* Кнопка меню */
     .mobile-menu-btn {
         position: fixed;
         top: 15px;
@@ -192,7 +259,7 @@
         transform: rotate(90deg);
     }
 
-    /* Затемнение фона при открытом меню */
+    /* Затемнение */
     .mobile-overlay {
         position: fixed;
         top: 0;
@@ -213,10 +280,10 @@
     .main-layout {
         flex-direction: column;
         height: 100vh;
-        padding-top: 0; /* Убираем отступ, так как шапка скрыта */
+        padding-top: 0;
     }
 
-    /* Холст на весь экран */
+    /* Холст */
     .drawing-zone {
         height: 100vh;
         width: 100vw;
@@ -227,25 +294,50 @@
         z-index: 1;
     }
 
+    /* Вкладки комнат */
     #tabs {
         position: fixed;
-        bottom: 10px;
-        left: 10px;
-        right: 70px; /* Оставляем место для кнопки меню */
+        bottom: 15px;
+        left: 15px;
+        right: 80px;
         z-index: 10;
-        background: rgba(255,255,255,0.9);
+        background: rgba(255,255,255,0.95);
         border-radius: 30px;
-        padding: 5px;
-        backdrop-filter: blur(5px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        padding: 6px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    #tabs::-webkit-scrollbar {
+        display: none;
     }
 
     .tab {
-        padding: 8px 20px 8px 15px;
-        font-size: 12px;
-        border-radius: 20px !important;
+        padding: 10px 20px 10px 15px;
+        font-size: 13px;
+        border-radius: 25px !important;
         background: white;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        white-space: nowrap;
+        border: 1px solid #e0e0e0;
+        flex-shrink: 0;
+    }
+
+    .tab.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .tab .close-tab {
+        right: 8px;
+        top: 9px;
+        font-size: 14px;
     }
 
     #canvas-container {
@@ -274,7 +366,6 @@
         right: 0;
     }
 
-    /* Кнопка закрытия бокового меню */
     .side-menu-close {
         position: sticky;
         top: 0;
@@ -288,9 +379,9 @@
     }
 
     .side-menu-close button {
-        width: 40px;
-        height: 40px;
-        border-radius: 20px;
+        width: 44px;
+        height: 44px;
+        border-radius: 22px;
         background: #f0f0f0;
         border: none;
         font-size: 20px;
@@ -298,21 +389,29 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
+        padding: 0;
+        min-height: 44px;
     }
 
-    /* Увеличиваем размеры кнопок для пальцев */
+    /* Увеличенные кнопки */
     button, select {
-        padding: 15px;
+        padding: 14px;
         font-size: 15px;
         min-height: 50px;
+        border-radius: 10px;
     }
 
     .menu-section h3 {
-        font-size: 15px;
-        padding: 10px 12px;
+        font-size: 16px;
+        padding: 12px 15px;
+        margin: -12px -15px 12px -15px;
     }
 
-    /* Сетка тарифов при регистрации */
+    .btn-group {
+        gap: 10px;
+    }
+
+    /* Тарифы */
     .pricing-container {
         flex-direction: column;
         align-items: center;
@@ -324,26 +423,33 @@
         max-width: 300px;
     }
 
-    /* Модальное окно цен */
+    /* Модальное окно */
     #priceModal .modal-content {
         width: 95%;
         margin: 10% auto;
-        padding: 15px;
+        padding: 20px;
         max-height: 80vh;
+        border-radius: 20px;
     }
     
     .price-table input {
-        width: 60px;
-        padding: 8px;
-    }
-
-    /* Статистика в боковом меню */
-    .stat-card, .total-card {
-        padding: 12px;
+        width: 70px;
+        padding: 10px;
         font-size: 14px;
     }
 
-    /* Анимации для плавности */
+    .price-table td {
+        padding: 12px 5px;
+    }
+
+    /* Статистика */
+    .stat-card, .total-card {
+        padding: 15px;
+        font-size: 14px;
+        border-radius: 15px;
+    }
+
+    /* Анимации */
     .header, .side-menu, .mobile-overlay {
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -359,14 +465,24 @@
         width: 90%;
     }
 
+    .header .project-controls button,
+    .header > div:last-child button {
+        font-size: 13px;
+        padding: 10px 5px;
+    }
+
+    .header .project-controls button span {
+        display: none; /* Скрываем иконки на совсем маленьких */
+    }
+
     #tabs {
-        right: 60px;
-        padding: 3px;
+        right: 70px;
+        bottom: 12px;
     }
 
     .tab {
-        padding: 6px 16px 6px 12px;
-        font-size: 11px;
+        padding: 8px 16px 8px 12px;
+        font-size: 12px;
     }
 
     .mobile-menu-btn {
@@ -375,72 +491,8 @@
         font-size: 22px;
     }
 }
-/* Стили для списка сохраненных проектов */
-.project-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    border: 1px solid #edf2f7;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    transition: all 0.2s ease;
-}
-
-.project-item:hover {
-    border-color: var(--primary);
-    background: #f8fafc;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-.project-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.project-name {
-    font-weight: 600;
-    color: var(--dark);
-    font-size: 15px;
-}
-
-.project-meta {
-    font-size: 12px;
-    color: #94a3b8;
-}
-
-.project-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.btn-load {
-    background: var(--success);
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.btn-delete {
-    background: #fff1f1;
-    color: var(--danger);
-    border: 1px solid #ffebeb;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.btn-delete:hover {
-    background: var(--danger);
-    color: white;
-}
 
 /* Кастомный скроллбар для списка */
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
 #projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
