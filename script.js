@@ -425,10 +425,11 @@ let showDiagonals = true;
 let showMeasures = true;
 let history = [];
 
-let touchState = {
-    let rafPending = false; // для оптимизации отрисовки
+let rafPending = false; // для оптимизации отрисовки
 let lastMoveTime = 0;
 const MOVE_THROTTLE = 16; // ~60fps
+
+let touchState = {
     isPinching: false,
     isPanning: false,
     initialDistance: 0,
@@ -581,6 +582,16 @@ function drawGrid() {
 }
 
 function draw(isExport = false) {
+    // Очищаем SVG
+    svg.innerHTML = ""; 
+    
+    // Рисуем сетку (только не в режиме экспорта)
+    if (!isExport) drawGrid();
+    
+    // Получаем активную комнату
+    let r = rooms[activeRoom]; 
+    if (!r) return;
+    
     // Оптимизация: если идет перетаскивание элемента, используем requestAnimationFrame
     if (dragElem || touchState.dragElem) {
         if (rafPending) return;
@@ -1068,8 +1079,8 @@ function initTouchHandlers() {
             if (point) {
                 const mmX = pxToMm(clientX, 'x');
                 const mmY = pxToMm(clientY, 'y');
-                point.x = snap(mmX);
-                point.y = snap(mmY);
+                point.x = snap(mmX, null, GRID_SNAP_MM);
+point.y = snap(mmY, null, GRID_SNAP_MM);
                 draw();
             }
             return;
@@ -1415,5 +1426,6 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 };
+
 
 
