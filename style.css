@@ -1,0 +1,251 @@
+:root { --primary: #00bcd4; --danger: #ff5252; --dark: #2c3e50; --bg: #f5f7fa; --success: #4caf50; --diag: #8e44ad; --panel-w: 350px; --light: #fbc02d; --gold: #ffd700; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* SaaS Auth Styles */
+    #auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: white; padding: 40px; border-radius: 15px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
+    .auth-card h1 { color: var(--dark); margin-bottom: 25px; font-size: 24px; }
+    .auth-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    .auth-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .auth-switch { font-size: 13px; color: #666; cursor: pointer; text-decoration: underline; }
+
+    /* Pricing Styles */
+    .pricing-container { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
+    .price-card { background: #f8f9fa; border: 2px solid #eee; padding: 20px; border-radius: 12px; width: 200px; transition: 0.3s; position: relative; }
+    .price-card.active { border-color: var(--primary); background: #e0f7fa; }
+    .price-card h4 { margin: 0 0 10px 0; }
+    .price-card .cost { font-size: 20px; font-weight: bold; color: var(--dark); }
+    .price-card ul { padding: 0; list-style: none; font-size: 12px; text-align: left; color: #666; }
+    .price-card li { margin-bottom: 5px; }
+    .badge-pro { background: var(--gold); color: var(--dark); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; vertical-align: middle; }
+
+    .header { background: var(--dark); color: white; padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+    .header h2 { margin: 0; font-size: 18px; letter-spacing: 1px; }
+
+    .user-info { display: flex; align-items: center; gap: 15px; font-size: 13px; }
+    .plan-status { background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--primary); }
+
+    .main-layout { display: flex; flex: 1; overflow: hidden; }
+
+    .drawing-zone { flex: 1; display: flex; flex-direction: column; padding: 10px; position: relative; }
+    #tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+    .tab { position: relative; padding: 8px 30px 8px 15px; cursor: pointer; background: #d1d9e6; border-radius: 6px 6px 0 0; border: none; font-size: 12px; white-space: nowrap; transition: 0.2s; }
+    .tab.active { background: white; font-weight: bold; color: var(--primary); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+    .tab .close-tab { position: absolute; right: 6px; top: 8px; width: 16px; height: 16px; line-height: 14px; text-align: center; border-radius: 50%; color: #999; transition: 0.2s; }
+    .tab .close-tab:hover { background: var(--danger); color: white; }
+
+    #canvas-container { flex: 1; background: white; border-radius: 0 8px 8px 8px; border: 1px solid #d1d9e6; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.02); }
+    svg { width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; }
+
+    .side-menu { width: var(--panel-w); background: white; border-left: 1px solid #d1d9e6; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; box-shadow: -5px 0 15px rgba(0,0,0,0.03); }
+    
+    .menu-section { margin-bottom: 15px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 10px; }
+    .menu-section h3 { margin: -12px -12px 12px -12px; padding: 8px 12px; background: #f8f9fa; border-radius: 10px 10px 0 0; font-size: 13px; color: var(--dark); border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 8px; }
+
+    .btn-group { display: flex; flex-direction: column; gap: 8px; }
+    button, select { padding: 10px; cursor: pointer; border: 1px solid #dee2e6; border-radius: 6px; background: #fff; font-size: 13px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; }
+    button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #f0fdff; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; background: #f5f5f5; }
+    button.active { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; font-weight: bold; }
+
+    .btn-toggle-active { background: #ede7f6; color: var(--diag); border-color: var(--diag); font-weight: bold; }
+
+    .stat-card { background: var(--dark); color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .total-card { background: #27ae60; color: white; padding: 15px; border-radius: 12px; margin-top: 10px; border: 2px solid #2ecc71; }
+    
+    #roomTitle { cursor: pointer; text-decoration: underline dotted; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold; color: var(--primary); }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; }
+    .stat-val { color: var(--primary); font-weight: bold; }
+    .total-val { color: #fff; font-weight: bold; font-size: 1.1em; }
+
+    .estimate-list { font-size: 13px; color: #333; max-height: 200px; overflow-y: auto; }
+    .estimate-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; align-items: center; }
+    .estimate-qty { font-weight: bold; color: var(--primary); background: #e0f7fa; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+
+    .length-label { fill: #007aff; font-size: 12px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-anchor: middle; cursor: pointer; }
+    .diag-label { fill: var(--diag); font-size: 10px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; }
+    .measure-label { fill: var(--danger); font-size: 10px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; }
+    .live-label { fill: var(--danger); font-size: 14px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-anchor: middle; pointer-events: none; }
+    .rail-label { fill: #fb8c00; font-size: 11px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; cursor: pointer; }
+    .light-label { fill: var(--light); font-size: 11px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; cursor: pointer; }
+
+    #print-container { display: none; }
+
+    .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: white; margin: 2% auto; padding: 20px; border-radius: 12px; width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 30px rgba(0,0,0,0.3); }
+    
+    .price-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    .price-table th { text-align: left; font-size: 12px; color: #777; border-bottom: 1px solid #eee; padding: 5px; }
+    .price-table td { padding: 8px 5px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    .price-table input { width: 70px; padding: 5px; text-align: right; border: 1px solid #ddd; border-radius: 4px; }
+    .btn-del { color: var(--danger); cursor: pointer; font-weight: bold; background: none; border: none; font-size: 16px; }
+    .btn-del:hover { background: #ffebee; border-radius: 4px; }
+
+    .add-form { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; display: none; }
+    .add-form.visible { display: block; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .form-row input, .form-row select { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+
+    .lock-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; text-align: center; }
+    .lock-overlay.active { display: flex; }
+
+    @media print {
+        body * { visibility: hidden; }
+        #print-container { display: block !important; visibility: visible; position: absolute; left: 0; top: 0; width: 100%; background: white; }
+        .print-page { page-break-after: always; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; min-height: 100vh; color: black; }
+        .print-header { border-bottom: 2px solid #2c3e50; margin-bottom: 20px; padding-bottom: 10px; }
+        .print-canvas { width: 100%; height: 400px; border: 1px solid #eee; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; }
+        .print-canvas svg { max-width: 100%; max-height: 100%; }
+        .print-estimate { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .print-estimate th, .print-estimate td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        .print-estimate th { background-color: #f2f2f2; }
+        .total-page { page-break-after: avoid; }
+    }
+
+/* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
+@media (max-width: 768px) {
+    :root {
+        --panel-w: 100%; /* Панель занимает всю ширину */
+    }
+
+    body {
+        overflow: auto; /* Разрешаем прокрутку на мобильных */
+    }
+
+    /* Шапка: переносим кнопки на новую строку */
+    .header {
+        flex-direction: column;
+        height: auto;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .header h2 {
+        font-size: 16px;
+    }
+
+    .user-info {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Главная разметка: стек вместо строки */
+    .main-layout {
+        flex-direction: column;
+        overflow: visible;
+    }
+
+    /* Холст: фиксированная высота для удобства рисования */
+    .drawing-zone {
+        height: 60vh; 
+        min-height: 400px;
+        padding: 5px;
+    }
+
+    /* Боковое меню: под холстом */
+    .side-menu {
+        width: 100%;
+        border-left: none;
+        border-top: 2px solid #d1d9e6;
+        padding: 15px;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+    }
+
+    /* Увеличиваем кнопки для удобства нажатия пальцем */
+    button, select {
+        padding: 14px;
+        font-size: 14px;
+    }
+
+    /* Сетка тарифов при регистрации */
+    .pricing-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .price-card {
+        width: 90%;
+    }
+
+    /* Модальное окно цен */
+    #priceModal .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 15px;
+    }
+    
+    .price-table input {
+        width: 60px; /* Сужаем инпуты в таблице */
+    }
+
+}
+/* Стили для списка сохраненных проектов */
+.project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.project-item:hover {
+    border-color: var(--primary);
+    background: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.project-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.project-name {
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 15px;
+}
+
+.project-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.project-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-load {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-delete {
+    background: #fff1f1;
+    color: var(--danger);
+    border: 1px solid #ffebeb;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-delete:hover {
+    background: var(--danger);
+    color: white;
+}
+
+/* Кастомный скроллбар для списка */
+#projectsListContainer::-webkit-scrollbar { width: 6px; }
+#projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
