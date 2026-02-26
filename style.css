@@ -245,6 +245,23 @@
     background: var(--danger);
     color: white;
 }
+    /* Увеличиваем область нажатия для мобильных */
+    .tab, button, select, .auth-switch, .close-tab {
+        min-height: 44px; /* Минимальный размер для удобного нажатия */
+    }
+    
+    /* Убираем hover-эффекты на мобильных (они мешают) */
+    @media (hover: none) and (pointer: coarse) {
+        button:hover:not(:disabled) {
+            transform: none;
+            background: #fff;
+            color: inherit;
+        }
+        
+        .project-item:hover {
+            transform: none;
+        }
+    }
 
 /* Кастомный скроллбар для списка */
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
@@ -273,4 +290,5 @@
     cursor: wait;
     pointer-events: none;
 }
+
 
