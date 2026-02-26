@@ -280,7 +280,7 @@ window.onload = () => {
         }
         document.getElementById('auth-overlay').style.display = 'flex';
     }
-};;
+};
 
 
 // --- CORE APPLICATION LOGIC (PRESERVED) ---
@@ -1396,9 +1396,9 @@ if (touches.length === 1) {
         touchState.moved = false;
         touchState.isLongPress = false;
     }, { passive: false });
-} // ← ЭТО ЗАКРЫТИЕ ФУНКЦИИ initTouchHandlers() - ОДНА СКОБКА!
-
-// --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
+} 
+}
+//--- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
     if (!currentUser || !currentUser.uid) {
@@ -1610,6 +1610,7 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
+
 
 
 
