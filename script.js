@@ -477,7 +477,44 @@ let isHoveringFirstPoint = false;
 let currentTool = 'draw';
 let showDiagonals = true;
 let showMeasures = true;
-let history = [];
+// --- УМНАЯ ИСТОРИЯ ДЕЙСТВИЙ ---
+class HistoryManager {
+    constructor(maxSize = 50) {
+        this.stack = [];
+        this.maxSize = maxSize;
+        this.currentIndex = -1;
+    }
+    
+    push(state) {
+        if (this.currentIndex < this.stack.length - 1) {
+            this.stack = this.stack.slice(0, this.currentIndex + 1);
+        }
+        
+        this.stack.push(JSON.stringify(state));
+        if (this.stack.length > this.maxSize) {
+            this.stack.shift();
+        }
+        this.currentIndex = this.stack.length - 1;
+    }
+    
+    undo() {
+        if (this.currentIndex > 0) {
+            this.currentIndex--;
+            return JSON.parse(this.stack[this.currentIndex]);
+        }
+        return null;
+    }
+    
+    redo() {
+        if (this.currentIndex < this.stack.length - 1) {
+            this.currentIndex++;
+            return JSON.parse(this.stack[this.currentIndex]);
+        }
+        return null;
+    }
+}
+
+const history = new HistoryManager();
 // --- Переменные для мобильного управления ---
 let touchState = {
     isPinching: false,
@@ -578,8 +615,19 @@ function saveState() {
 }
 
 function undo() {
-    if (history.length > 0) {
-        rooms = JSON.parse(history.pop());
+    const prevState = history.undo();
+    if (prevState) {
+        rooms = prevState;
+        if (activeRoom >= rooms.length) activeRoom = Math.max(0, rooms.length - 1);
+        renderTabs(); requestDraw();
+    }
+}
+
+// Добавьте новую функцию для возврата действия (Ctrl+Y или Ctrl+Shift+Z)
+function redo() {
+    const nextState = history.redo();
+    if (nextState) {
+        rooms = nextState;
         if (activeRoom >= rooms.length) activeRoom = Math.max(0, rooms.length - 1);
         renderTabs(); requestDraw();
     }
@@ -1274,7 +1322,55 @@ window.onclick = function(event) {
     if (event.target == modal) {
         closeProjectsModal();
     }
+// --- ГОРЯЧИЕ КЛАВИШИ ---
+document.addEventListener('keydown', (e) => {
+    // Сохранить проект: Ctrl+S или Cmd+S
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveProject();
+    }
+    
+    // Отмена: Ctrl+Z
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+    }
+    
+    // Вернуть: Ctrl+Y или Ctrl+Shift+Z
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
+        e.preventDefault();
+        redo();
+    }
+    
+    // Удалить выбранный элемент: Delete
+    if (e.key === 'Delete') {
+        // Если есть выделенный элемент
+        if (window.selectedElement) {
+            e.preventDefault();
+            // Логика удаления
+        }
+    }
+    
+    // Отмена текущего действия: Esc
+    if (e.key === 'Escape') {
+        dragId = null;
+        dragElem = null;
+        requestDraw();
+    }
+    
+    // Быстрый выбор инструментов (цифры 1-4)
+    if (!e.ctrlKey && !e.altKey && !e.metaKey && !isNaN(parseInt(e.key))) {
+        const num = parseInt(e.key);
+        switch(num) {
+            case 1: setTool('draw'); break;
+            case 2: setTool('light'); break;
+            case 3: setTool('extra'); break;
+            case 4: setTool('rail'); break;
+        }
+    }
+});
 }
+
 
 
 
