@@ -1041,120 +1041,113 @@ if (touches.length === 1) {
         }
     }, { passive: false });
 
-    // Движение пальца
-    canvas.addEventListener('touchmove', (e) => {
-        if (document.getElementById('auth-overlay').style.display !== 'none') return;
-        e.preventDefault();
+   // Движение пальца
+canvas.addEventListener('touchmove', (e) => {
+    if (document.getElementById('auth-overlay').style.display !== 'none') return;
+    e.preventDefault();
+    
+    const touches = e.touches;
+    const rect = canvas.getBoundingClientRect();
 
-        const touches = e.touches;
-        const rect = canvas.getBoundingClientRect();
+    // --- Два пальца: зум ---
+    if (touches.length === 2 && touchState.isPinching) {
+        const currentDistance = getTouchDistance(touches);
+        if (currentDistance === 0) return;
 
-        // --- Два пальца: зум ---
-        if (touches.length === 2 && touchState.isPinching) {
-            const currentDistance = getTouchDistance(touches);
-            if (currentDistance === 0) return;
+        const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
+        scale = newScale;
 
-            const newScale = touchState.initialScale * (currentDistance / touchState.initialDistance);
-            scale = newScale;
+        // Текущий центр между пальцами (в координатах SVG)
+        const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
+        const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
 
-            // Текущий центр между пальцами (в координатах SVG)
-            const centerX = (touches[0].clientX + touches[1].clientX) / 2 - rect.left;
-            const centerY = (touches[0].clientY + touches[1].clientY) / 2 - rect.top;
+        // Новые offset: точка, которая была под центром в начале, остаётся под центром
+        offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
+        offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
 
-            // Новые offset: точка, которая была под центром в начале, остаётся под центром
-            offsetX = centerX - touchState.pinchCenterMM_X * (MM_TO_PX * scale);
-            offsetY = centerY - touchState.pinchCenterMM_Y * (MM_TO_PX * scale);
+        draw();
+        return;
+    }
 
-            draw();
+    // --- Один палец ---
+    if (touches.length === 1) {
+        const touch = touches[0];
+        const clientX = touch.clientX - rect.left;
+        const clientY = touch.clientY - rect.top;
+        
+        // ОБНОВЛЯЕМ ПОЗИЦИЮ ДЛЯ ПЛАВНОЙ ОТРИСОВКИ
+        if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
+        touchState.lastTouchPos.x = clientX;
+        touchState.lastTouchPos.y = clientY;
+
+        // Порог движения
+        if (!touchState.moved) {
+            const dx = clientX - touchState.touchStartX;
+            const dy = clientY - touchState.touchStartY;
+            if (Math.hypot(dx, dy) > touchState.MOVE_THRESHOLD) {
+                touchState.moved = true;
+            } else {
+                return; // ещё не сдвинули
+            }
+        }
+
+        // Перетаскивание точки
+        if (touchState.dragId) {
+            const r = rooms[activeRoom];
+            const point = r.points.find(p => p.id === touchState.dragId);
+            if (point) {
+                const mmX = pxToMm(clientX, 'x');
+                const mmY = pxToMm(clientY, 'y');
+                point.x = mmX;
+                point.y = mmY;
+                draw();
+            }
             return;
         }
 
-        // --- Один палец ---
-        if (touches.length === 1) {
-            const touch = touches[0];
-            const clientX = touch.clientX - rect.left;
-            const clientY = touch.clientY - rect.top;
-
-            // В начале блока touchmove, после получения clientX/clientY:
-if (touches.length === 1) {
-    const touch = touches[0];
-    const clientX = touch.clientX - rect.left;
-    const clientY = touch.clientY - rect.top;
-    
-    // ОБНОВЛЯЕМ ПОЗИЦИЮ ДЛЯ ПЛАВНОЙ ОТРИСОВКИ
-    if (!touchState.lastTouchPos) touchState.lastTouchPos = {};
-    touchState.lastTouchPos.x = clientX;
-    touchState.lastTouchPos.y = clientY;
-    
-    // ... остальной код
-}
-
-            // Порог движения
-            if (!touchState.moved) {
-                const dx = clientX - touchState.touchStartX;
-                const dy = clientY - touchState.touchStartY;
-                if (Math.hypot(dx, dy) > touchState.MOVE_THRESHOLD) {
-                    touchState.moved = true;
-                } else {
-                    return; // ещё не сдвинули
-                }
+        // Перетаскивание элемента - ИСПРАВЛЕНО для мобильных
+        if (touchState.dragElem) {
+            const r = rooms[activeRoom];
+            const el = touchState.dragElem;
+            
+            // Получаем координаты в миллиметрах
+            let mmX = pxToMm(clientX, 'x');
+            let mmY = pxToMm(clientY, 'y');
+            
+            // Привязка к сетке для более точного позиционирования
+            mmX = snap(mmX, null, LIGHT_SNAP_MM);
+            mmY = snap(mmY, null, LIGHT_SNAP_MM);
+            
+            // Плавное обновление позиции
+            el.x = mmX;
+            el.y = mmY;
+            
+            // Проверяем, не находится ли элемент рядом со стеной для автоматического поворота
+            if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
+                checkAndRotateToWall(el, r);
             }
-
-            // Перетаскивание элемента - ИСПРАВЛЕНО для мобильных
-if (touchState.dragElem) {
-    const r = rooms[activeRoom];
-    const el = touchState.dragElem;
-    
-    // Получаем координаты в миллиметрах
-    let mmX = pxToMm(clientX, 'x');
-    let mmY = pxToMm(clientY, 'y');
-    
-    // Привязка к сетке для более точного позиционирования
-    mmX = snap(mmX, null, LIGHT_SNAP_MM);
-    mmY = snap(mmY, null, LIGHT_SNAP_MM);
-    
-    // Плавное обновление позиции
-    el.x = mmX;
-    el.y = mmY;
-    
-    // Проверяем, не находится ли элемент рядом со стеной для автоматического поворота
-    if (el.type === 'rail' || el.subtype === 'TRACK' || el.subtype === 'LIGHT_LINE') {
-        checkAndRotateToWall(el, r);
-    }
-    
-    // Отрисовываем с накоплением для плавности
-    if (!touchState.pendingDraw) {
-        touchState.pendingDraw = true;
-        requestAnimationFrame(() => {
-            draw();
-            touchState.pendingDraw = false;
-        });
-    }
-    return;
-}
-
-            // Перетаскивание элемента
-            if (touchState.dragElem) {
-                const r = rooms[activeRoom];
-                const el = touchState.dragElem;
-                const mmX = pxToMm(clientX, 'x');
-                const mmY = pxToMm(clientY, 'y');
-                el.x = mmX;
-                el.y = mmY;
-                draw();
-                return;
+            
+            // Отрисовываем с накоплением для плавности
+            if (!touchState.pendingDraw) {
+                touchState.pendingDraw = true;
+                requestAnimationFrame(() => {
+                    draw();
+                    touchState.pendingDraw = false;
+                });
             }
-
-            // Pan
-            if (touchState.isPanning) {
-                const dx = clientX - touchState.touchStartX;
-                const dy = clientY - touchState.touchStartY;
-                offsetX = touchState.lastPanX + dx;
-                offsetY = touchState.lastPanY + dy;
-                draw();
-            }
+            return;
         }
-    }, { passive: false });
+
+        // Pan
+        if (touchState.isPanning) {
+            const dx = clientX - touchState.touchStartX;
+            const dy = clientY - touchState.touchStartY;
+            offsetX = touchState.lastPanX + dx;
+            offsetY = touchState.lastPanY + dy;
+            draw();
+        }
+    }
+}, { passive: false });
 
     // Конец касания
     canvas.addEventListener('touchend', (e) => {
@@ -1437,6 +1430,7 @@ window.onclick = function(event) {
         closeProjectsModal();
     }
 }
+
 
 
 
