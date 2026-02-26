@@ -250,30 +250,115 @@
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
 #projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-/* Запрещаем скролл только на холсте */
-canvas {
-    touch-action: none;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-}
+/* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
+@media (max-width: 768px) {
+    :root {
+        --panel-w: 100%;
+    }
 
-/* Разрешаем скролл на всей странице */
-body {
-    overflow: auto;
-    position: relative;
-    width: 100%;
-    height: 100vh;
-}
+    body {
+        overflow: auto;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
 
-/* Боковое меню должно скроллиться */
-.side-menu {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* плавный скролл на iOS */
-}
+    /* Шапка */
+    .header {
+        flex-direction: column;
+        height: auto;
+        padding: 10px;
+        gap: 10px;
+        flex-shrink: 0; /* Не сжимается */
+    }
 
-/* Контейнер с проектами тоже должен скроллиться */
-#projectsListContainer {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    .header h2 {
+        font-size: 16px;
+    }
+
+    .user-info {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Главная разметка */
+    .main-layout {
+        flex-direction: column;
+        overflow: auto; /* Разрешаем скролл */
+        flex: 1;
+    }
+
+    /* Холст */
+    .drawing-zone {
+        height: 50vh; /* Половина экрана */
+        min-height: 300px;
+        padding: 5px;
+        flex-shrink: 0; /* Не сжимается */
+    }
+
+    #canvas-container {
+        height: 100%;
+    }
+
+    /* Боковое меню */
+    .side-menu {
+        width: 100%;
+        height: auto;
+        max-height: 40vh; /* Ограничиваем высоту */
+        border-left: none;
+        border-top: 2px solid #d1d9e6;
+        padding: 15px;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+        overflow-y: auto !important; /* Принудительно включаем скролл */
+        -webkit-overflow-scrolling: touch;
+        flex-shrink: 1; /* Может сжиматься */
+    }
+
+    /* Убеждаемся что все секции меню нормально отображаются */
+    .menu-section {
+        margin-bottom: 15px;
+        padding: 12px;
+    }
+
+    /* Увеличиваем кнопки */
+    button, select {
+        padding: 14px;
+        font-size: 14px;
+        min-height: 44px; /* Минимальный размер для касания */
+    }
+
+    /* Сетка тарифов */
+    .pricing-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .price-card {
+        width: 90%;
+    }
+
+    /* Модальное окно */
+    #priceModal .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 15px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .price-table input {
+        width: 60px;
+    }
+
+    /* Модалка проектов */
+    #projectsModal .modal-content {
+        width: 95%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    #projectsListContainer {
+        max-height: 60vh;
+        overflow-y: auto !important;
+    }
 }
