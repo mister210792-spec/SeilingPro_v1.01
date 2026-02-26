@@ -250,18 +250,30 @@
 #projectsListContainer::-webkit-scrollbar { width: 6px; }
 #projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
-/* Запрещаем скролл на мобильных устройствах */
+/* Запрещаем скролл только на холсте */
 canvas {
-    touch-action: none; /* Это уже есть, но убедись */
+    touch-action: none;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
 }
 
+/* Разрешаем скролл на всей странице */
 body {
-    overflow: hidden; /* Запрещаем скролл всей страницы */
-    position: fixed; /* Фиксируем позицию */
+    overflow: auto;
+    position: relative;
     width: 100%;
-    height: 100%;
+    height: 100vh;
 }
 
+/* Боковое меню должно скроллиться */
+.side-menu {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* плавный скролл на iOS */
+}
+
+/* Контейнер с проектами тоже должен скроллиться */
+#projectsListContainer {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
