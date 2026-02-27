@@ -1548,44 +1548,6 @@ window.onclick = function(event) {
     }
 };
 
-// --- ГОРЯЧИЕ КЛАВИШИ ---
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        saveProject();
-    }
-    
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-    }
-    
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) {
-        e.preventDefault();
-        redo();
-    }
-    
-    if (e.key === 'Delete' && window.selectedElement) {
-        e.preventDefault();
-    }
-    
-    if (e.key === 'Escape') {
-        dragId = null;
-        dragElem = null;
-        requestDraw();
-    }
-    
-    if (!e.ctrlKey && !e.altKey && !e.metaKey && !isNaN(parseInt(e.key))) {
-        const num = parseInt(e.key);
-        switch(num) {
-            case 1: setTool('draw'); break;
-            case 2: setTool('light'); break;
-            case 3: setTool('extra'); break;
-            case 4: setTool('rail'); break;
-        }
-    }
-});
-
 // --- ЗАЩИТА ОТ ЗАВИСАНИЯ НА МОБИЛЬНЫХ ---
 document.addEventListener('touchstart', (e) => {
     if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
@@ -1608,7 +1570,8 @@ document.addEventListener('touchcancel', () => {
     touchState.dragId = null;
     touchState.dragElem = null;
     touchState.moved = false;
-});
+ }
+}
 
-    }
+
 
