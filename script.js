@@ -1397,7 +1397,7 @@ canvas.addEventListener('touchcancel', (e) => {
     touchState.isLongPress = false;
     
 }, { passive: false });
-//--- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
+// --- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
     if (!currentUser || !currentUser.uid) {
@@ -1410,15 +1410,18 @@ function saveProject() {
     const projectName = prompt("Введите название проекта:", `Проект от ${new Date().toLocaleDateString()}`);
     if (!projectName || projectName.trim() === "") return;
 
+    // Копируем данные комнат (rooms - это глобальная переменная твоего приложения)
+    // Важно: мы не можем сохранить функции или сложные объекты, поэтому делаем копию
     const projectData = JSON.parse(JSON.stringify(rooms));
 
     const project = {
         name: projectName.trim(),
-        date: new Date().toISOString(),
+        date: new Date().toISOString(), // Сохраняем в международном формате
         dateLocale: new Date().toLocaleString('ru-RU'),
         data: projectData
     };
 
+    // Добавляем проект в подколлекцию 'projects' для данного пользователя
     db.collection('users').doc(currentUser.uid).collection('projects').add(project)
         .then((docRef) => {
             console.log("✅ Проект сохранен с ID:", docRef.id);
@@ -1440,13 +1443,15 @@ function openProjectsModal() {
     const container = document.getElementById('projectsListContainer');
     container.innerHTML = '<div style="text-align:center; padding:20px;">⏳ Загрузка проектов...</div>';
 
+    // Показываем модалку сразу, чтобы был виден процесс загрузки
     document.getElementById('projectsModal').style.display = 'flex';
 
+    // Запрашиваем проекты пользователя из Firestore, сортируем по дате (новые сверху)
     db.collection('users').doc(currentUser.uid).collection('projects')
         .orderBy('date', 'desc')
         .get()
         .then((querySnapshot) => {
-            container.innerHTML = "";
+            container.innerHTML = ""; // Очищаем контейнер
 
             if (querySnapshot.empty) {
                 container.innerHTML = `
@@ -1482,7 +1487,6 @@ function openProjectsModal() {
             container.innerHTML = `<div style="color: red; padding: 20px;">Ошибка загрузки: ${error.message}</div>`;
         });
 }
-
 function loadProject(projectId) {
     if (!currentUser || !currentUser.uid || !db) return;
 
@@ -1491,11 +1495,13 @@ function loadProject(projectId) {
             .then((doc) => {
                 if (doc.exists) {
                     const project = doc.data();
+                    // Восстанавливаем данные комнат
                     rooms = JSON.parse(JSON.stringify(project.data));
-                    activeRoom = 0;
+                    activeRoom = 0; // Активируем первую комнату
 
+                    // Вызываем функции отрисовки
                     if (typeof renderTabs === 'function') renderTabs();
-                    if (typeof draw === 'function') requestDraw();
+                    if (typeof draw === 'function') draw();
 
                     closeProjectsModal();
                     alert(`Проект "${project.name}" загружен.`);
@@ -1517,7 +1523,8 @@ function deleteProject(projectId) {
         db.collection('users').doc(currentUser.uid).collection('projects').doc(projectId).delete()
             .then(() => {
                 console.log("Проект удален");
-                openProjectsModal();
+                // Обновляем список проектов в модальном окне
+                openProjectsModal(); // Переоткрываем для обновления
             })
             .catch((error) => {
                 console.error("Ошибка удаления:", error);
@@ -1526,6 +1533,7 @@ function deleteProject(projectId) {
     }
 }
 
+// Простая защита от XSS (когда пользователь ввел бы скрипт в название проекта)
 function escapeHtml(unsafe) {
     if (!unsafe) return '';
     return unsafe
@@ -1546,32 +1554,10 @@ window.onclick = function(event) {
     if (event.target == modal) {
         closeProjectsModal();
     }
-};
-
-// --- ЗАЩИТА ОТ ЗАВИСАНИЯ НА МОБИЛЬНЫХ ---
-document.addEventListener('touchstart', (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-        dragId = null;
-        dragElem = null;
-        isPanning = false;
-        touchState.isPanning = false;
-        touchState.dragId = null;
-        touchState.dragElem = null;
-    }
-}, { passive: true });
-
-// Глобальный обработчик для разблокировки интерфейса
-document.addEventListener('touchcancel', () => {
-    dragId = null;
-    dragElem = null;
-    isPanning = false;
-    touchState.isPinching = false;
-    touchState.isPanning = false;
-    touchState.dragId = null;
-    touchState.dragElem = null;
-    touchState.moved = false;
- }
 }
+
+
+
 
 
 
