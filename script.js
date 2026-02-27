@@ -1378,25 +1378,25 @@ if (touches.length === 1) {
     }, { passive: false });
 
   // Отмена касания
-    canvas.addEventListener('touchcancel', (e) => {
-        if (document.getElementById('auth-overlay').style.display !== 'none') return;
-        e.preventDefault();
-        
-        clearTimeout(touchState.longPressTimer);
-        
-        touchState.isPinching = false;
-        touchState.isRotating = false;
-        touchState.isPanning = false;
-        touchState.dragId = null;
-        touchState.dragElem = null;
-        touchState.rotationElem = null;
-        touchState.potentialDragId = null;
-        touchState.potentialDragElem = null;
-        touchState.targetLabel = null;
-        touchState.moved = false;
-        touchState.isLongPress = false;
-    }, { passive: false });
-}
+canvas.addEventListener('touchcancel', (e) => {
+    if (document.getElementById('auth-overlay').style.display !== 'none') return;
+    e.preventDefault();
+    
+    clearTimeout(touchState.longPressTimer);
+    
+    touchState.isPinching = false;
+    touchState.isRotating = false;
+    touchState.isPanning = false;
+    touchState.dragId = null;
+    touchState.dragElem = null;
+    touchState.rotationElem = null;
+    touchState.potentialDragId = null;
+    touchState.potentialDragElem = null;
+    touchState.targetLabel = null;
+    touchState.moved = false;
+    touchState.isLongPress = false;
+    
+}, { passive: false });
 //--- ФУНКЦИИ УПРАВЛЕНИЯ ПРОЕКТАМИ ---
 
 function saveProject() {
@@ -1609,6 +1609,7 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
+
 
 
 
