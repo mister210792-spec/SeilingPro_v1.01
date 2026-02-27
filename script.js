@@ -1609,11 +1609,5 @@ document.addEventListener('touchcancel', () => {
     touchState.dragElem = null;
     touchState.moved = false;
 });
-}
 
-
-
-
-
-
-
+} // <--- ДОБАВЬТЕ ЭТУ СКОБКУ ДЛЯ ЗАКРЫТИЯ initTouchHandlers()
