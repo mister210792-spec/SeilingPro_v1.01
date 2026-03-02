@@ -2315,18 +2315,6 @@ function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
 
-// Функция для обновления масштаба при изменении размера окна
-let resizeTimeout;
-window.addEventListener('resize', function() {
-    // Отменяем предыдущий таймаут
-    clearTimeout(resizeTimeout);
-    // Устанавливаем новый таймаут для предотвращения частых вызовов
-    resizeTimeout = setTimeout(() => {
-        setScaleFor5x5();
-        draw();
-    }, 100);
-});
-
 window.onclick = function(event) {
     const modal = document.getElementById('projectsModal');
     if (event.target == modal) {
@@ -2342,4 +2330,5 @@ window.onclick = function(event) {
     if (event.target == contextMenu || (contextMenu && !contextMenu.contains(event.target) && contextMenu.style.display === 'flex')) {
         contextMenu.style.display = 'none';
     }
+
 };
