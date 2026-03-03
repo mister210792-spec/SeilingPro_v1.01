@@ -2671,6 +2671,8 @@ function copyToClipboard(text) {
         
         alert('✅ Команда скопирована!');
     });
+} // <--- ЭТА СКОБКА БЫЛА ПРОПУЩЕНА!
+
 // Функция активации PRO (вызывается из Telegram бота)
 function activateProSubscription(uid, paymentDuration = 30) {
     if (!db) return Promise.reject('База данных не доступна');
@@ -2689,9 +2691,6 @@ function activateProSubscription(uid, paymentDuration = 30) {
     }).then(() => {
         console.log(`✅ PRO активирован для ${uid} до ${endDate.toLocaleDateString()}`);
         
-        // Здесь можно отправить уведомление пользователю, если он онлайн
-        // Но это сложнее, пока просто вернём успех
-        
         return { 
             success: true, 
             endDate: endDate,
@@ -2702,7 +2701,8 @@ function activateProSubscription(uid, paymentDuration = 30) {
         return { success: false, error: error.message };
     });
 }
-    // Уведомление об истекшей подписке
+
+// Уведомление об истекшей подписке
 function showExpiredNotification() {
     // Проверяем, не показывали ли уже
     if (document.getElementById('expired-notification')) return;
@@ -2728,7 +2728,7 @@ function showExpiredNotification() {
     `;
     notification.innerHTML = '⏰ Срок действия PRO истёк. <span style="text-decoration:underline">Продлить</span>';
     notification.onclick = () => {
-        renewSubscription(); // создадим эту функцию дальше
+        renewSubscription();
         notification.remove();
     };
     document.body.appendChild(notification);
@@ -2811,5 +2811,3 @@ function renewSubscription() {
         window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
     });
 }
-
-
