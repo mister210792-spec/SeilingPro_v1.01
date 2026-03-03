@@ -2344,25 +2344,58 @@ function loadProject(projectId) {
             .then((doc) => {
                 if (doc.exists) {
                     const project = doc.data();
-                    rooms = JSON.parse(JSON.stringify(project.data));
+                    
+                    // Загружаем данные проекта
+                    let loadedRooms = JSON.parse(JSON.stringify(project.data));
+                    
+                    // --- НАЧАЛО: Проверка для FREE-тарифа ---
+                    if (currentUser.plan === 'free') {
+                        if (loadedRooms.length > 1) {
+                            // Показываем предупреждение
+                            alert(`⚠️ В бесплатном тарифе доступна только 1 комната.\nПроект содержит ${loadedRooms.length} комнат.\nБудет загружена только первая комната.`);
+                            
+                            // Оставляем только первую комнату
+                            loadedRooms = loadedRooms.slice(0, 1);
+                            
+                            // Очищаем элементы в остальных комнатах (на всякий случай)
+                            if (loadedRooms[0] && !loadedRooms[0].elements) {
+                                loadedRooms[0].elements = [];
+                            }
+                        }
+                        
+                        // Дополнительная проверка: если в первой комнате слишком много элементов?
+                        // (можно добавить позже, если будет нужно)
+                    }
+                    // --- КОНЕЦ: Проверка для FREE-тарифа ---
+                    
+                    // Сохраняем состояние для возможности отмены
+                    saveState();
+                    
+                    // Применяем загруженные (и возможно обрезанные) комнаты
+                    rooms = loadedRooms;
                     activeRoom = 0;
 
                     if (typeof renderTabs === 'function') renderTabs();
                     if (typeof draw === 'function') draw();
 
                     closeProjectsModal();
-                    alert(`Проект "${project.name}" загружен.`);
+                    
+                    // Показываем разное сообщение в зависимости от ситуации
+                    if (currentUser.plan === 'free' && project.data.length > 1) {
+                        alert(`✅ Проект "${project.name}" загружен (первая комната).\nДля загрузки всех комнат перейдите на PRO тариф.`);
+                    } else {
+                        alert(`✅ Проект "${project.name}" загружен.`);
+                    }
                 } else {
-                    alert("Проект не найден.");
+                    alert("❌ Проект не найден.");
                 }
             })
             .catch((error) => {
-                console.error("Ошибка загрузки проекта:", error);
-                alert("Ошибка загрузки: " + error.message);
+                console.error("❌ Ошибка загрузки проекта:", error);
+                alert("❌ Ошибка загрузки: " + error.message);
             });
     }
 }
-
 function deleteProject(projectId) {
     if (!currentUser || !currentUser.uid || !db) return;
 
@@ -2508,4 +2541,5 @@ function copyToClipboard(text) {
         
         alert('✅ Команда скопирована!');
     });
+
 }
