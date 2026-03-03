@@ -85,63 +85,63 @@ function handleRegister() {
                 });
             });
         })
-        .then(() => {
+                .then(() => {
             console.log("✅ Аккаунт создан");
             
             if (plan === 'free') {
-                // FREE - просто входим
                 console.log("Вход выполнен");
             } 
-else if (plan === 'pro') {
-    // СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
-    const userId = user.uid;
-    const userEmail = email;
-    
-    // ФОРМИРУЕМ КОМАНДУ ДЛЯ ПРИВЯЗКИ
-    const telegramCommand = `/start link_${userId}_${userEmail}`;
-    
-    // ПОКАЗЫВАЕМ ОКНО С ОПЛАТОЙ
-    document.getElementById('auth-overlay').innerHTML = `
-        <div class="auth-card" style="text-align: center; max-width: 400px;">
-            <h1 style="color: var(--dark);">✅ Аккаунт создан!</h1>
-            <p style="margin: 20px 0; font-size: 16px;">Для активации PRO-тарифа:</p>
-            
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                <p style="margin: 0 0 10px 0; font-size: 14px; color: #555;">
-                    1. Нажмите кнопку ниже (скопирует команду и откроет Telegram)
-                </p>
-                <p style="margin: 10px 0; font-size: 14px; color: #555;">
-                    2. Вставьте команду в чат с ботом
-                </p>
-            </div>
-            
-            <button class="auth-btn" onclick="copyAndOpenTelegram('${telegramCommand}')" 
-                    style="background: #0088cc; margin-bottom: 10px;">
-                📋 Копировать команду и открыть Telegram
-            </button>
-            
-            <button class="auth-btn" onclick="window.open('https://t.me/CeilingPlanPRO_Bot', '_blank')" 
-                    style="background: #00bcd4; margin-bottom: 10px;">
-                💬 Открыть чат с ботом
-            </button>
-            
-            <p style="font-size: 12px; color: #666; margin-top: 20px;">
-                Команда для вставки:<br>
-                <code style="background: #eee; padding: 5px; border-radius: 5px; display: inline-block; margin-top: 5px;">
-                    ${telegramCommand}
-                </code>
-            </p>
-            
-            <button class="auth-btn" onclick="location.reload()" 
-                    style="background: transparent; color: #666; border: 1px solid #ddd; margin-top: 10px;">
-                ✖️ Закрыть
-            </button>
-        </div>
-    `;
-    
-    // ВЫХОДИМ ИЗ АККАУНТА
-    auth.signOut();
-}
+            else if (plan === 'pro') {
+                // СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
+                const userId = user.uid;
+                const userEmail = email;
+                
+                // ФОРМИРУЕМ КОМАНДУ ДЛЯ ПРИВЯЗКИ
+                const telegramCommand = `/start link_${userId}_${userEmail}`;
+                
+                // ПОКАЗЫВАЕМ ОКНО С ОПЛАТОЙ
+                document.getElementById('auth-overlay').innerHTML = `
+                    <div class="auth-card" style="text-align: center; max-width: 400px;">
+                        <h1 style="color: var(--dark);">✅ Аккаунт создан!</h1>
+                        <p style="margin: 20px 0; font-size: 16px;">Для активации PRO-тарифа:</p>
+                        
+                        <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                            <p style="margin: 0 0 10px 0; font-size: 14px; color: #555;">
+                                1. Нажмите кнопку ниже (скопирует команду и откроет Telegram)
+                            </p>
+                            <p style="margin: 10px 0; font-size: 14px; color: #555;">
+                                2. Вставьте команду в чат с ботом
+                            </p>
+                        </div>
+                        
+                        <button class="auth-btn" onclick="copyAndOpenTelegram('${telegramCommand}')" 
+                                style="background: #0088cc; margin-bottom: 10px;">
+                            📋 Копировать команду и открыть Telegram
+                        </button>
+                        
+                        <button class="auth-btn" onclick="window.open('https://t.me/CeilingPlanPRO_Bot', '_blank')" 
+                                style="background: #00bcd4; margin-bottom: 10px;">
+                            💬 Открыть чат с ботом
+                        </button>
+                        
+                        <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                            Команда для вставки:<br>
+                            <code style="background: #eee; padding: 5px; border-radius: 5px; display: inline-block; margin-top: 5px;">
+                                ${telegramCommand}
+                            </code>
+                        </p>
+                        
+                        <button class="auth-btn" onclick="location.reload()" 
+                                style="background: transparent; color: #666; border: 1px solid #ddd; margin-top: 10px;">
+                            ✖️ Закрыть
+                        </button>
+                    </div>
+                `;
+                
+                // ВЫХОДИМ ИЗ АККАУНТА
+                auth.signOut();
+            }
+        })
         .catch((error) => {
             console.error("❌ Ошибка:", error);
             let errorMessage = "Ошибка: ";
@@ -154,7 +154,7 @@ else if (plan === 'pro') {
             }
             alert(errorMessage);
         });
-}function loadUserPlanFromFirestore(uid) {
+    function loadUserPlanFromFirestore(uid) {
     if (!db) return;
     db.collection('users').doc(uid).get()
         .then((doc) => {
@@ -2505,6 +2505,7 @@ window.onclick = function(event) {
     }
 
 };
+
 
 
 
