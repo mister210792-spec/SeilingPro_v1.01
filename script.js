@@ -92,15 +92,16 @@ function handleRegister() {
                 // FREE - просто входим
                 console.log("Вход выполнен");
             } 
-            else if (plan === 'pro') {
-    // СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ДЛЯ КОПИРОВАНИЯ
+          / PRO - показываем ОКНО ОПЛАТЫ и выходим
+else if (plan === 'pro') {
+    // СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
     const userId = user.uid;
     const userEmail = email;
     
     // ФОРМИРУЕМ КОМАНДУ ДЛЯ ПРИВЯЗКИ
     const telegramCommand = `/start link_${userId}_${userEmail}`;
     
-    // 1. ПРЯЧЕМ ВСЕ ФОРМЫ
+    // ПОКАЗЫВАЕМ ОКНО С ОПЛАТОЙ
     document.getElementById('auth-overlay').innerHTML = `
         <div class="auth-card" style="text-align: center; max-width: 400px;">
             <h1 style="color: var(--dark);">✅ Аккаунт создан!</h1>
@@ -115,13 +116,11 @@ function handleRegister() {
                 </p>
             </div>
             
-            <!-- КНОПКА С КОПИРОВАНИЕМ И ПЕРЕХОДОМ -->
             <button class="auth-btn" onclick="copyAndOpenTelegram('${telegramCommand}')" 
-                    style="background: #0088cc; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    style="background: #0088cc; margin-bottom: 10px;">
                 📋 Копировать команду и открыть Telegram
             </button>
             
-            <!-- КНОПКА ПРОСТО ОТКРЫТЬ ЧАТ -->
             <button class="auth-btn" onclick="window.open('https://t.me/CeilingPlanPRO_Bot', '_blank')" 
                     style="background: #00bcd4; margin-bottom: 10px;">
                 💬 Открыть чат с ботом
@@ -141,7 +140,7 @@ function handleRegister() {
         </div>
     `;
     
-    // 2. ВЫХОДИМ (разлогиниваем)
+    // ВЫХОДИМ ИЗ АККАУНТА
     auth.signOut();
 }
         .catch((error) => {
@@ -2507,4 +2506,5 @@ window.onclick = function(event) {
     }
 
 };
+
 
