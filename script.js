@@ -92,7 +92,6 @@ function handleRegister() {
                 // FREE - просто входим
                 console.log("Вход выполнен");
             } 
-          / PRO - показываем ОКНО ОПЛАТЫ и выходим
 else if (plan === 'pro') {
     // СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
     const userId = user.uid;
@@ -2506,5 +2505,6 @@ window.onclick = function(event) {
     }
 
 };
+
 
 
