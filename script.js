@@ -203,7 +203,7 @@ function loadUserPlanFromFirestore(uid) {
                             headerPlan.style.color = '';
                         }
                     }
-                    // ========== КОНЕЦ ИЗМЕНЕНИЙ ==========
+                   updateRenewButton();
                     
                     if (currentUser.pendingPro) {
                         showPaymentReminder();
@@ -265,27 +265,40 @@ function completeAuth() {
         initSelectors();
     }
     
-  if(currentUser.plan === 'free' && rooms.length > 1) {
-    rooms = rooms.slice(0, 1);
-    renderTabs();
-} else if (rooms.length === 0) {
-    // Создаем пустую комнату
-    rooms.push({
-        name: "Полотно 1",
-        points: [],
-        id: Date.now(),
-        closed: false,
-        elements: []
-    });
-    activeRoom = 0;
-    renderTabs();
+    if(currentUser.plan === 'free' && rooms.length > 1) {
+        rooms = rooms.slice(0, 1);
+        renderTabs();
+    } else if (rooms.length === 0) {
+        // Создаем пустую комнату
+        rooms.push({
+            name: "Полотно 1",
+            points: [],
+            id: Date.now(),
+            closed: false,
+            elements: []
+        });
+        activeRoom = 0;
+        renderTabs();
+    }
+
+    // ========== НОВЫЙ КОД ==========
+    // Обновляем отображение плана и показываем кнопку продления если нужно
+    updatePlanDisplay();
+    updateRenewButton();
+    // ========== КОНЕЦ НОВОГО КОДА ==========
+
+    // Устанавливаем масштаб под размер 5x5 метров
+    setScaleFor5x5();
+    draw();
+
+    initMobileHandlers();
 }
-
-// Устанавливаем масштаб под размер 5x5 метров
-setScaleFor5x5();
-draw();
-
-initMobileHandlers();
+// Функция для показа/скрытия кнопки продления
+function updateRenewButton() {
+    const renewSection = document.getElementById('renew-section');
+    if (renewSection) {
+        renewSection.style.display = currentUser?.plan === 'pro' ? 'block' : 'none';
+    }
 }
 function handleLogout() {
     if(confirm("Выйти из системы?")) {
@@ -2798,5 +2811,5 @@ function renewSubscription() {
         window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
     });
 }
-}
+
 
