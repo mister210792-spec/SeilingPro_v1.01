@@ -85,7 +85,7 @@ function handleRegister() {
                 });
             });
         })
-                .then(() => {
+        .then(() => {
             console.log("✅ Аккаунт создан");
             
             if (plan === 'free') {
@@ -154,7 +154,12 @@ function handleRegister() {
             }
             alert(errorMessage);
         });
-    function loadUserPlanFromFirestore(uid) {
+}
+
+// ЗАКРЫВАЮЩАЯ СКОБКА ДЛЯ handleRegister()
+// ДАЛЬШЕ ИДУТ ОСТАЛЬНЫЕ ФУНКЦИИ
+
+function loadUserPlanFromFirestore(uid) {
     if (!db) return;
     db.collection('users').doc(uid).get()
         .then((doc) => {
@@ -198,6 +203,7 @@ function handleRegister() {
         })
         .catch((error) => console.error("Ошибка загрузки плана:", error));
 }
+
 function loadCustomElementsFromFirestore(uid) {
     if (!db) return Promise.resolve();
     return db.collection('users').doc(uid).collection('customElements').get()
@@ -243,28 +249,29 @@ function completeAuth() {
         initSelectors();
     }
     
-  if(currentUser.plan === 'free' && rooms.length > 1) {
-    rooms = rooms.slice(0, 1);
-    renderTabs();
-} else if (rooms.length === 0) {
-    // Создаем пустую комнату
-    rooms.push({
-        name: "Полотно 1",
-        points: [],
-        id: Date.now(),
-        closed: false,
-        elements: []
-    });
-    activeRoom = 0;
-    renderTabs();
+    if(currentUser.plan === 'free' && rooms.length > 1) {
+        rooms = rooms.slice(0, 1);
+        renderTabs();
+    } else if (rooms.length === 0) {
+        // Создаем пустую комнату
+        rooms.push({
+            name: "Полотно 1",
+            points: [],
+            id: Date.now(),
+            closed: false,
+            elements: []
+        });
+        activeRoom = 0;
+        renderTabs();
+    }
+
+    // Устанавливаем масштаб под размер 5x5 метров
+    setScaleFor5x5();
+    draw();
+
+    initMobileHandlers();
 }
 
-// Устанавливаем масштаб под размер 5x5 метров
-setScaleFor5x5();
-draw();
-
-initMobileHandlers();
-}
 function handleLogout() {
     if(confirm("Выйти из системы?")) {
         if (auth) {
@@ -279,23 +286,22 @@ function handleLogout() {
 window.onload = () => {
     initFirebaseServices();
 
-   if (auth) {
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            currentUser = {
-                name: user.displayName || user.email.split('@')[0],
-                email: user.email,
-                uid: user.uid,
-                plan: 'free'
-            };
-            loadUserPlanFromFirestore(user.uid);
-            completeAuth(); // setScaleFor5x5() уже вызывается внутри completeAuth
-        } else {
-            document.getElementById('auth-overlay').style.display = 'flex';
-        }
-    });
-} 
-else {
+    if (auth) {
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = {
+                    name: user.displayName || user.email.split('@')[0],
+                    email: user.email,
+                    uid: user.uid,
+                    plan: 'free'
+                };
+                loadUserPlanFromFirestore(user.uid);
+                completeAuth(); // setScaleFor5x5() уже вызывается внутри completeAuth
+            } else {
+                document.getElementById('auth-overlay').style.display = 'flex';
+            }
+        });
+    } else {
         console.warn("Firebase не доступен, использую локальную систему.");
         const lastUserEmail = localStorage.getItem('saas_last_user');
         if (lastUserEmail) {
@@ -570,6 +576,7 @@ let currentTool = 'draw';
 let showDiagonals = true;
 let showMeasures = true;
 let history = [];
+
 // Функция для центрирования помещения на экране
 function centerView() {
     const r = rooms[activeRoom];
@@ -610,6 +617,7 @@ function centerView() {
     updateZoomLevel();
     draw();
 }
+
 // Функция для установки масштаба под размер 5x5 метров
 function setScaleFor5x5() {
     // Размер помещения в мм (5м = 5000мм)
@@ -652,6 +660,7 @@ function setScaleFor5x5() {
     console.log("📐 Масштаб установлен для 5x5 метров:", scale.toFixed(3), 
                 "Размер контейнера:", containerWidth, "x", containerHeight);
 }
+
 // --- Мобильные переменные ---
 let mobileTool = 'draw';
 let longPressTimer = null;
@@ -2141,7 +2150,9 @@ function addRoom() {
     activeRoom = rooms.length - 1;
     renderTabs();
     draw();
-}function removeRoom(idx, e) {
+}
+
+function removeRoom(idx, e) {
     e.stopPropagation();
     if (confirm("Удалить это помещение?")) {
         saveState();
@@ -2393,6 +2404,7 @@ function escapeHtml(unsafe) {
 function closeProjectsModal() {
     document.getElementById('projectsModal').style.display = 'none';
 }
+
 function linkTelegramAccount() {
   if (!currentUser || !currentUser.uid) {
     alert("Сначала войдите в систему");
@@ -2406,6 +2418,7 @@ function linkTelegramAccount() {
   // Открываем бота с параметром - UID пользователя
   window.open(`https://t.me/CeilingPlanPRO_Bot?start=link_${uid}_${email}`, '_blank');
 }
+
 // Функция для привязки Telegram
 function linkTelegram() {
     if (!currentUser || !currentUser.uid) {
@@ -2437,6 +2450,7 @@ function linkTelegram() {
         window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
     });
 }
+
 function showPaymentReminder() {
     // Проверяем, не показывали ли уже
     if (document.getElementById('payment-reminder')) return;
@@ -2463,6 +2477,7 @@ function showPaymentReminder() {
         if (reminder.parentNode) reminder.remove();
     }, 10000);
 }
+
 // Функция для копирования команды и открытия Telegram
 function copyAndOpenTelegram(command) {
     // Копируем в буфер обмена
@@ -2488,6 +2503,7 @@ function copyAndOpenTelegram(command) {
         window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
     });
 }
+
 window.onclick = function(event) {
     const modal = document.getElementById('projectsModal');
     if (event.target == modal) {
