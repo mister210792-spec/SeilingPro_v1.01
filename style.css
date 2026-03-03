@@ -1646,4 +1646,27 @@ circle[stroke="#e74c3c"][r="8"] {
 
 .auth-card button {
     margin: 5px 0;
+
+}
+/* Уведомление об успешном копировании */
+.notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4caf50;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-weight: bold;
+    z-index: 10001;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    animation: fadeInOut 3s ease;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    15% { opacity: 1; transform: translate(-50%, 0); }
+    85% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
 }
