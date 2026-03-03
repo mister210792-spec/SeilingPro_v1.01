@@ -2503,9 +2503,4 @@ window.onclick = function(event) {
     if (event.target == contextMenu || (contextMenu && !contextMenu.contains(event.target) && contextMenu.style.display === 'flex')) {
         contextMenu.style.display = 'none';
     }
-
 };
-
-
-
-
