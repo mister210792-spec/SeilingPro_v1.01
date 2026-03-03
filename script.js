@@ -77,12 +77,26 @@ function handleRegister() {
             return user.updateProfile({
                 displayName: name
             }).then(() => {
-                return db.collection('users').doc(user.uid).set({
-                    name: name,
-                    email: email,
-                    plan: plan,
-                    registeredAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+               // Подготовка данных пользователя
+const userData = {
+    name: name,
+    email: email,
+    plan: plan,
+    registeredAt: firebase.firestore.FieldValue.serverTimestamp()
+};
+
+// Если выбрали PRO - добавляем данные подписки
+if (plan === 'pro') {
+    userData.subscription = {
+        status: 'pending',           // Ожидает оплаты
+        startDate: null,              // Заполнится после оплаты
+        endDate: null,                 // Заполнится после оплаты
+        autoRenew: false,              // Автопродление (пока нет)
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+}
+
+return db.collection('users').doc(user.uid).set(userData);
             }).then(() => {
                 console.log("✅ Аккаунт создан");
                 
@@ -160,16 +174,24 @@ function loadUserPlanFromFirestore(uid) {
             if (doc.exists) {
                 const userData = doc.data();
                 if (currentUser) {
-                    // ЕСЛИ СТАТУС 'pending' - ПОКАЗЫВАЕМ КАК FREE
-                    if (userData.plan === 'pending') {
+                    // ========== ИЗМЕНЕНИЯ ЗДЕСЬ ==========
+                    // Проверяем статус подписки
+                    const planStatus = checkSubscriptionStatus(userData, uid);
+                    
+                    if (planStatus === 'expired') {
+                        currentUser.plan = 'free';
+                        currentUser.subscriptionExpired = true;
+                        showExpiredNotification(); // эту функцию создадим позже
+                    } else if (planStatus === 'pending') {
                         currentUser.plan = 'free';
                         currentUser.pendingPro = true;
                         console.log("⏳ Ожидается оплата PRO");
                     } else {
-                        currentUser.plan = userData.plan || 'free';
-                        currentUser.pendingPro = false;
+                        currentUser.plan = planStatus;
+                        currentUser.subscription = userData.subscription || null;
                     }
                     
+                    // Обновляем отображение плана в шапке
                     const headerPlan = document.getElementById('header-plan');
                     if (headerPlan) {
                         headerPlan.innerText = "План: " + currentUser.plan.toUpperCase();
@@ -181,6 +203,7 @@ function loadUserPlanFromFirestore(uid) {
                             headerPlan.style.color = '';
                         }
                     }
+                    // ========== КОНЕЦ ИЗМЕНЕНИЙ ==========
                     
                     if (currentUser.pendingPro) {
                         showPaymentReminder();
@@ -288,6 +311,100 @@ window.onload = () => {
                 plan: 'free'
             };
             loadUserPlanFromFirestore(user.uid);
+            // Функция обновления отображения плана и проверки дней
+function updatePlanDisplay() {
+    const headerPlan = document.getElementById('header-plan');
+    if (!headerPlan || !currentUser) return;
+    
+    if (currentUser.plan === 'pro') {
+        headerPlan.innerText = "План: PRO";
+        headerPlan.style.background = 'var(--gold)';
+        headerPlan.style.color = 'var(--dark)';
+        
+        // Показываем сколько осталось дней (если есть дата)
+        if (currentUser.subscription?.endDate) {
+            let endDate;
+            if (currentUser.subscription.endDate.toDate) {
+                endDate = currentUser.subscription.endDate.toDate();
+            } else {
+                endDate = new Date(currentUser.subscription.endDate);
+            }
+            
+            const now = new Date();
+            const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+            
+            console.log(`📅 До окончания PRO: ${daysLeft} дней`);
+            
+            if (daysLeft > 0 && daysLeft <= 7) {
+                // Предупреждаем, если осталось меньше недели
+                showRenewReminder(daysLeft);
+            }
+            
+            // Добавляем подсказку в шапку
+            headerPlan.title = `Действует до ${endDate.toLocaleDateString('ru-RU')}`;
+        }
+    } else {
+        headerPlan.innerText = "План: FREE";
+        headerPlan.style.background = '';
+        headerPlan.style.color = '';
+        headerPlan.title = '';
+    }
+}
+            // Функция проверки статуса подписки
+function checkSubscriptionStatus(userData, uid) {
+    // Если у пользователя нет поля subscription (старые пользователи)
+    if (!userData.subscription) {
+        console.log("ℹ️ Старый пользователь без подписки");
+        return 'free';
+    }
+    
+    // Если пользователь бесплатный
+    if (userData.plan === 'free') {
+        return 'free';
+    }
+    
+    // Если подписка в статусе pending (ожидает оплаты)
+    if (userData.subscription.status === 'pending') {
+        return 'pending';
+    }
+    
+    // Проверяем, активна ли подписка
+    if (userData.subscription.status === 'active') {
+        // Если есть дата окончания
+        if (userData.subscription.endDate) {
+            // Преобразуем дату окончания в объект Date
+            let endDate;
+            if (userData.subscription.endDate.toDate) {
+                // Если это Firestore Timestamp
+                endDate = userData.subscription.endDate.toDate();
+            } else {
+                // Если это обычная дата
+                endDate = new Date(userData.subscription.endDate);
+            }
+            
+            // Текущая дата
+            const now = new Date();
+            
+            // Проверяем, не истекла ли подписка
+            if (endDate < now) {
+                console.log("⏰ Подписка истекла");
+                
+                // Обновляем статус в базе данных
+                db.collection('users').doc(uid).update({
+                    'plan': 'free',
+                    'subscription.status': 'expired'
+                }).catch(error => console.error("Ошибка обновления статуса:", error));
+                
+                return 'expired';
+            }
+            
+            console.log("✅ Подписка активна до:", endDate.toLocaleDateString());
+            return 'pro';
+        }
+    }
+    
+    return 'free';
+}
             completeAuth(); // setScaleFor5x5() уже вызывается внутри completeAuth
         } else {
             document.getElementById('auth-overlay').style.display = 'flex';
@@ -2541,5 +2658,145 @@ function copyToClipboard(text) {
         
         alert('✅ Команда скопирована!');
     });
-
+// Функция активации PRO (вызывается из Telegram бота)
+function activateProSubscription(uid, paymentDuration = 30) {
+    if (!db) return Promise.reject('База данных не доступна');
+    
+    console.log(`🔄 Активация PRO для пользователя: ${uid}`);
+    
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + paymentDuration * 24 * 60 * 60 * 1000);
+    
+    return db.collection('users').doc(uid).update({
+        plan: 'pro',
+        'subscription.status': 'active',
+        'subscription.startDate': firebase.firestore.FieldValue.serverTimestamp(),
+        'subscription.endDate': endDate,
+        'subscription.autoRenew': false
+    }).then(() => {
+        console.log(`✅ PRO активирован для ${uid} до ${endDate.toLocaleDateString()}`);
+        
+        // Здесь можно отправить уведомление пользователю, если он онлайн
+        // Но это сложнее, пока просто вернём успех
+        
+        return { 
+            success: true, 
+            endDate: endDate,
+            message: `PRO активирован до ${endDate.toLocaleDateString('ru-RU')}`
+        };
+    }).catch(error => {
+        console.error("❌ Ошибка активации PRO:", error);
+        return { success: false, error: error.message };
+    });
 }
+    // Уведомление об истекшей подписке
+function showExpiredNotification() {
+    // Проверяем, не показывали ли уже
+    if (document.getElementById('expired-notification')) return;
+    
+    const notification = document.createElement('div');
+    notification.id = 'expired-notification';
+    notification.style.cssText = `
+        position: fixed; 
+        top: 70px; 
+        left: 50%; 
+        transform: translateX(-50%);
+        background: #ff5252; 
+        color: white; 
+        padding: 12px 24px;
+        border-radius: 30px; 
+        font-weight: bold; 
+        z-index: 10000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    `;
+    notification.innerHTML = '⏰ Срок действия PRO истёк. <span style="text-decoration:underline">Продлить</span>';
+    notification.onclick = () => {
+        renewSubscription(); // создадим эту функцию дальше
+        notification.remove();
+    };
+    document.body.appendChild(notification);
+    
+    // Автоматически скрыть через 10 секунд
+    setTimeout(() => {
+        if (notification.parentNode) notification.remove();
+    }, 10000);
+}
+
+// Напоминание о скором окончании
+function showRenewReminder(daysLeft) {
+    if (document.getElementById('renew-reminder')) return;
+    
+    const reminder = document.createElement('div');
+    reminder.id = 'renew-reminder';
+    reminder.style.cssText = `
+        position: fixed; 
+        top: 70px; 
+        left: 50%; 
+        transform: translateX(-50%);
+        background: #ff9800; 
+        color: white; 
+        padding: 12px 24px;
+        border-radius: 30px; 
+        font-weight: bold; 
+        z-index: 10000;
+        cursor: pointer; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    `;
+    reminder.innerHTML = `⚠️ PRO истекает через ${daysLeft} дн. <span style="text-decoration:underline">Продлить</span>`;
+    reminder.onclick = () => {
+        renewSubscription();
+        reminder.remove();
+    };
+    document.body.appendChild(reminder);
+    
+    setTimeout(() => {
+        if (reminder.parentNode) reminder.remove();
+    }, 10000);
+}
+
+// Функция продления подписки
+function renewSubscription() {
+    if (!currentUser || !currentUser.uid) {
+        alert("Сначала войдите в систему");
+        return;
+    }
+    
+    const uid = currentUser.uid;
+    const email = currentUser.email || '';
+    const command = `/start renew_${uid}_${email}`;
+    
+    // Копируем команду в буфер обмена
+    navigator.clipboard.writeText(command).then(() => {
+        window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
+        
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed; 
+            top: 20px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            background: #4caf50; 
+            color: white; 
+            padding: 12px 24px;
+            border-radius: 30px; 
+            font-weight: bold; 
+            z-index: 10001;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        `;
+        notification.textContent = '✅ Команда продления скопирована! Вставьте в Telegram';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }).catch(() => {
+        alert(`Отправьте эту команду в Telegram для продления:\n\n${command}`);
+        window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
+    });
+}
+}
+
