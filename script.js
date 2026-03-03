@@ -93,31 +93,57 @@ function handleRegister() {
                 console.log("Вход выполнен");
             } 
             else if (plan === 'pro') {
-                // PRO - показываем ОКНО ОПЛАТЫ и выходим
-                
-                // 1. ПРЯЧЕМ ВСЕ ФОРМЫ
-                document.getElementById('auth-overlay').innerHTML = `
-                    <div class="auth-card" style="text-align: center;">
-                        <h1 style="color: var(--dark);">✅ Аккаунт создан!</h1>
-                        <p style="margin: 20px 0; font-size: 16px;">Для активации PRO-тарифа оплатите через Telegram:</p>
-                        <button class="auth-btn" onclick="window.open('https://t.me/CeilingPlanPRO_Bot', '_blank')" 
-                                style="background: #0088cc; margin-bottom: 10px;">
-                            💎 Оплатить 490₽ через Telegram
-                        </button>
-                        <p style="font-size: 12px; color: #666; margin-top: 20px;">
-                            После оплаты войдите в приложение с вашим email и паролем
-                        </p>
-                        <button class="auth-btn" onclick="location.reload()" 
-                                style="background: transparent; color: #666; border: 1px solid #ddd; margin-top: 10px;">
-                            ✖️ Закрыть
-                        </button>
-                    </div>
-                `;
-                
-                // 2. ВЫХОДИМ (разлогиниваем)
-                auth.signOut();
-            }
-        })
+    // СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ДЛЯ КОПИРОВАНИЯ
+    const userId = user.uid;
+    const userEmail = email;
+    
+    // ФОРМИРУЕМ КОМАНДУ ДЛЯ ПРИВЯЗКИ
+    const telegramCommand = `/start link_${userId}_${userEmail}`;
+    
+    // 1. ПРЯЧЕМ ВСЕ ФОРМЫ
+    document.getElementById('auth-overlay').innerHTML = `
+        <div class="auth-card" style="text-align: center; max-width: 400px;">
+            <h1 style="color: var(--dark);">✅ Аккаунт создан!</h1>
+            <p style="margin: 20px 0; font-size: 16px;">Для активации PRO-тарифа:</p>
+            
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #555;">
+                    1. Нажмите кнопку ниже (скопирует команду и откроет Telegram)
+                </p>
+                <p style="margin: 10px 0; font-size: 14px; color: #555;">
+                    2. Вставьте команду в чат с ботом
+                </p>
+            </div>
+            
+            <!-- КНОПКА С КОПИРОВАНИЕМ И ПЕРЕХОДОМ -->
+            <button class="auth-btn" onclick="copyAndOpenTelegram('${telegramCommand}')" 
+                    style="background: #0088cc; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                📋 Копировать команду и открыть Telegram
+            </button>
+            
+            <!-- КНОПКА ПРОСТО ОТКРЫТЬ ЧАТ -->
+            <button class="auth-btn" onclick="window.open('https://t.me/CeilingPlanPRO_Bot', '_blank')" 
+                    style="background: #00bcd4; margin-bottom: 10px;">
+                💬 Открыть чат с ботом
+            </button>
+            
+            <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                Команда для вставки:<br>
+                <code style="background: #eee; padding: 5px; border-radius: 5px; display: inline-block; margin-top: 5px;">
+                    ${telegramCommand}
+                </code>
+            </p>
+            
+            <button class="auth-btn" onclick="location.reload()" 
+                    style="background: transparent; color: #666; border: 1px solid #ddd; margin-top: 10px;">
+                ✖️ Закрыть
+            </button>
+        </div>
+    `;
+    
+    // 2. ВЫХОДИМ (разлогиниваем)
+    auth.signOut();
+}
         .catch((error) => {
             console.error("❌ Ошибка:", error);
             let errorMessage = "Ошибка: ";
@@ -2439,6 +2465,31 @@ function showPaymentReminder() {
         if (reminder.parentNode) reminder.remove();
     }, 10000);
 }
+// Функция для копирования команды и открытия Telegram
+function copyAndOpenTelegram(command) {
+    // Копируем в буфер обмена
+    navigator.clipboard.writeText(command).then(() => {
+        // Открываем Telegram
+        window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
+        
+        // Показываем уведомление
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #4caf50; color: white; padding: 12px 24px;
+            border-radius: 30px; font-weight: bold; z-index: 10001;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        `;
+        notification.textContent = '✅ Команда скопирована! Вставьте в чат с ботом';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => notification.remove(), 3000);
+    }).catch(() => {
+        // Если не удалось скопировать
+        alert(`❌ Не удалось скопировать. Отправьте эту команду вручную:\n\n${command}`);
+        window.open('https://t.me/CeilingPlanPRO_Bot', '_blank');
+    });
+}
 window.onclick = function(event) {
     const modal = document.getElementById('projectsModal');
     if (event.target == modal) {
@@ -2456,3 +2507,4 @@ window.onclick = function(event) {
     }
 
 };
+
