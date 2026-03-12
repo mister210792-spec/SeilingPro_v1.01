@@ -336,7 +336,11 @@ function draw(isExport = false) {
     }
     
     updateStats();
+    if (typeof window.update3D === 'function' && window.is3DMode) {
+        window.update3D();
+    }
 }
+
 
 function drawSymbol(el, def) {
     let cx = mmToPx(el.x, 'x'), cy = mmToPx(el.y, 'y');
@@ -1279,5 +1283,6 @@ window.closeRectangleModal = closeRectangleModal;
 window.skipRoomTypeModal = skipRoomTypeModal;
 // Добавьте эту строку к существующему экспорту
 window.setRectSize = setRectSize;
+
 
 
