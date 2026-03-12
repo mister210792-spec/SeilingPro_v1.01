@@ -21,6 +21,7 @@ let currentTool = 'draw';
 let showDiagonals = true;
 let showMeasures = true;
 let history = [];
+let selectedElementForEdit = null;
 // Флаг для пропуска модального окна (будет использоваться из projects.js)
 window.skipRoomTypeModal = false;
 // ========== ОСНОВНЫЕ ФУНКЦИИ ==========
@@ -227,11 +228,30 @@ function draw(isExport = false) {
         }
     }
     
-    if (r.elements) {
-        r.elements.forEach((el, idx) => {
-            let def = getElementDef(el.subtype);
-            let g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-            g.setAttribute("transform", `rotate(${el.rotation || 0}, ${mmToPx(el.x, 'x')}, ${mmToPx(el.y, 'y')})`);
+   if (r.elements) {
+    r.elements.forEach((el, idx) => {
+        let def = getElementDef(el.subtype);
+        let g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        
+        // Добавляем подсветку для выбранного элемента
+        if (el === selectedElementForEdit) {
+            // Рисуем рамку вокруг элемента
+            let bbox = { x: el.x, y: el.y, width: el.width || 200 };
+            let padding = 50; // 5 см в мм
+            
+            let rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", mmToPx(el.x - (bbox.width/2) - padding, 'x'));
+            rect.setAttribute("y", mmToPx(el.y - padding, 'y'));
+            rect.setAttribute("width", mmToPx(bbox.width + padding*2, 'x') - mmToPx(el.x - (bbox.width/2) - padding, 'x'));
+            rect.setAttribute("height", mmToPx(padding*2, 'y') - mmToPx(0, 'y'));
+            rect.setAttribute("fill", "none");
+            rect.setAttribute("stroke", "var(--primary)");
+            rect.setAttribute("stroke-width", "2");
+            rect.setAttribute("stroke-dasharray", "5,5");
+            svg.appendChild(rect);
+        }
+        
+        g.setAttribute("transform", `rotate(${el.rotation || 0}, ${mmToPx(el.x, 'x')}, ${mmToPx(el.y, 'y')})`);
             
             const isLinear = def.type === 'linear' || el.type === 'rail';
             
@@ -311,34 +331,46 @@ else {
     }
 }
             
-            if (!isExport) {
-                if (window.isMobile) {
-                    g.addEventListener('touchstart', (e) => handleElementTouchStart(el, idx, e), { passive: false });
-                    g.addEventListener('touchend', (e) => handleElementTouchEnd(el, idx, e), { passive: false });
-                    g.addEventListener('touchmove', handleElementTouchMove, { passive: false });
-                    g.addEventListener('touchcancel', cancelLongPress, { passive: false });
+         if (!isExport) {
+    if (window.isMobile) {
+        // Мобильная версия - долгое нажатие для выбора
+        g.addEventListener('touchstart', (e) => handleElementTouchStart(el, idx, e), { passive: false });
+        g.addEventListener('touchend', (e) => handleElementTouchEnd(el, idx, e), { passive: false });
+        g.addEventListener('touchmove', handleElementTouchMove, { passive: false });
+        g.addEventListener('touchcancel', cancelLongPress, { passive: false });
+    } else {
+        // Десктоп версия - добавляем выбор элемента
+        g.style.cursor = 'pointer';
+        g.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Если зажат Ctrl, то выбираем элемент для редактирования
+            if (e.ctrlKey) {
+                selectElementForEdit(el);
+            } else {
+                // Обычное перетаскивание
+                if (e.altKey) {
+                    saveState();
+                    let copy = JSON.parse(JSON.stringify(el));
+                    r.elements.push(copy);
+                    dragElem = copy;
                 } else {
-                    g.onmousedown = (e) => {
-                        e.stopPropagation();
-                        if (e.altKey) {
-                            saveState();
-                            let copy = JSON.parse(JSON.stringify(el));
-                            r.elements.push(copy);
-                            dragElem = copy;
-                        } else {
-                            saveState();
-                            dragElem = el;
-                        }
-                    };
-                    g.oncontextmenu = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        saveState();
-                        r.elements.splice(idx, 1);
-                        draw();
-                    };
+                    saveState();
+                    dragElem = el;
                 }
             }
+        };
+        
+        g.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            saveState();
+            r.elements.splice(idx, 1);
+            draw();
+        };
+    }
+}
             svg.appendChild(g);
         });
     }
@@ -1667,6 +1699,271 @@ function editElementPosition(el) {
         alert('Введите корректные значения');
     }
 }
+function selectElementForEdit(el) {
+    // Снимаем выделение с предыдущего элемента
+    if (selectedElementForEdit) {
+        // Можно добавить визуальное снятие выделения
+    }
+    
+    // Выделяем новый элемент
+    selectedElementForEdit = el;
+    
+    // Показываем уведомление
+    if (typeof showNotification === 'function') {
+        showNotification(`✅ Выбран элемент: ${getElementDef(el.subtype)?.label || el.subtype}`);
+    } else {
+        alert(`Выбран элемент: ${getElementDef(el.subtype)?.label || el.subtype}`);
+    }
+    
+    // Перерисовываем, чтобы показать выделение
+    draw();
+}
+function openElementOffsetEditor() {
+    if (!selectedElementForEdit) {
+        alert('Сначала выберите элемент (кликните с зажатым Ctrl)');
+        return;
+    }
+    
+    const el = selectedElementForEdit;
+    const r = rooms[activeRoom];
+    
+    if (!r || !r.closed) {
+        alert('Помещение должно быть замкнуто');
+        return;
+    }
+    
+    // Находим правую и нижнюю стены
+    const walls = findRightAndBottomWalls(el, r);
+    
+    if (!walls.rightWall || !walls.bottomWall) {
+        alert('Не удалось найти правую или нижнюю стену');
+        return;
+    }
+    
+    // Текущие отступы в см
+    const rightOffset = Math.round(walls.rightWall.distance / 10);
+    const bottomOffset = Math.round(walls.bottomWall.distance / 10);
+    
+    // Максимальные отступы в см
+    const maxRight = Math.round(walls.rightWall.maxDistance / 10);
+    const maxBottom = Math.round(walls.bottomWall.maxDistance / 10);
+    
+    const modalHtml = `
+        <div id="elementOffsetModal" class="modal" style="display: block; z-index: 7000;">
+            <div class="modal-content" style="width: 400px; max-width: 95%;">
+                <h3 style="margin-top: 0; color: var(--dark);">📏 Позиция элемента</h3>
+                
+                <div style="margin-bottom: 20px; padding: 10px; background: #f0f7fa; border-radius: 8px;">
+                    <p><strong>Элемент:</strong> ${getElementDef(el.subtype)?.label || el.subtype}</p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">➡️ Отступ от правой стены</h4>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="right-offset-slider" min="0" max="${maxRight}" value="${rightOffset}" step="1" style="flex: 1;">
+                        <input type="number" id="right-offset-input" value="${rightOffset}" min="0" max="${maxRight}" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                        <span>см</span>
+                    </div>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        Максимум: ${maxRight} см
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">⬇️ Отступ от нижней стены</h4>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="bottom-offset-slider" min="0" max="${maxBottom}" value="${bottomOffset}" step="1" style="flex: 1;">
+                        <input type="number" id="bottom-offset-input" value="${bottomOffset}" min="0" max="${maxBottom}" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                        <span>см</span>
+                    </div>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        Максимум: ${maxBottom} см
+                    </p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #eee; padding-top: 15px;">
+                    <button onclick="applyElementOffsets()" style="background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px;">
+                        Применить
+                    </button>
+                    <button onclick="closeElementOffsetModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 8px;">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Удаляем старое модальное окно
+    const oldModal = document.getElementById('elementOffsetModal');
+    if (oldModal) oldModal.remove();
+    
+    // Добавляем новое
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Добавляем обработчики
+    const rightSlider = document.getElementById('right-offset-slider');
+    const rightInput = document.getElementById('right-offset-input');
+    
+    rightSlider.addEventListener('input', () => {
+        rightInput.value = rightSlider.value;
+    });
+    
+    rightInput.addEventListener('input', () => {
+        let val = parseInt(rightInput.value);
+        if (val < 0) val = 0;
+        if (val > maxRight) val = maxRight;
+        rightInput.value = val;
+        rightSlider.value = val;
+    });
+    
+    const bottomSlider = document.getElementById('bottom-offset-slider');
+    const bottomInput = document.getElementById('bottom-offset-input');
+    
+    bottomSlider.addEventListener('input', () => {
+        bottomInput.value = bottomSlider.value;
+    });
+    
+    bottomInput.addEventListener('input', () => {
+        let val = parseInt(bottomInput.value);
+        if (val < 0) val = 0;
+        if (val > maxBottom) val = maxBottom;
+        bottomInput.value = val;
+        bottomSlider.value = val;
+    });
+}
+
+function findRightAndBottomWalls(el, room) {
+    const result = {
+        rightWall: null,
+        bottomWall: null
+    };
+    
+    // Находим все стены
+    const walls = [];
+    for (let i = 0; i < room.points.length; i++) {
+        const p1 = room.points[i];
+        const p2 = room.points[(i + 1) % room.points.length];
+        
+        // Вертикальные стены (по X)
+        if (Math.abs(p1.x - p2.x) < 1) {
+            walls.push({
+                type: 'vertical',
+                x: p1.x,
+                yMin: Math.min(p1.y, p2.y),
+                yMax: Math.max(p1.y, p2.y),
+                p1, p2
+            });
+        }
+        // Горизонтальные стены (по Y)
+        else if (Math.abs(p1.y - p2.y) < 1) {
+            walls.push({
+                type: 'horizontal',
+                y: p1.y,
+                xMin: Math.min(p1.x, p2.x),
+                xMax: Math.max(p1.x, p2.x),
+                p1, p2
+            });
+        }
+    }
+    
+    // Ищем правую стену (максимальный X, который больше X элемента)
+    let rightDist = Infinity;
+    walls.forEach(wall => {
+        if (wall.type === 'vertical' && wall.x > el.x) {
+            // Проверяем, что элемент находится в пределах стены по Y
+            if (el.y >= wall.yMin && el.y <= wall.yMax) {
+                const dist = wall.x - el.x;
+                if (dist < rightDist) {
+                    rightDist = dist;
+                    result.rightWall = {
+                        wall,
+                        distance: dist,
+                        maxDistance: wall.x - getMinX(room)
+                    };
+                }
+            }
+        }
+    });
+    
+    // Ищем нижнюю стену (максимальный Y, который больше Y элемента)
+    let bottomDist = Infinity;
+    walls.forEach(wall => {
+        if (wall.type === 'horizontal' && wall.y > el.y) {
+            // Проверяем, что элемент находится в пределах стены по X
+            if (el.x >= wall.xMin && el.x <= wall.xMax) {
+                const dist = wall.y - el.y;
+                if (dist < bottomDist) {
+                    bottomDist = dist;
+                    result.bottomWall = {
+                        wall,
+                        distance: dist,
+                        maxDistance: wall.y - getMinY(room)
+                    };
+                }
+            }
+        }
+    });
+    
+    return result;
+}
+
+function getMinX(room) {
+    return Math.min(...room.points.map(p => p.x));
+}
+
+function getMinY(room) {
+    return Math.min(...room.points.map(p => p.y));
+}
+
+function applyElementOffsets() {
+    if (!selectedElementForEdit) {
+        closeElementOffsetModal();
+        return;
+    }
+    
+    const el = selectedElementForEdit;
+    const r = rooms[activeRoom];
+    
+    const rightInput = document.getElementById('right-offset-input');
+    const bottomInput = document.getElementById('bottom-offset-input');
+    
+    if (!rightInput || !bottomInput) return;
+    
+    const newRightOffset = parseFloat(rightInput.value) * 10; // в мм
+    const newBottomOffset = parseFloat(bottomInput.value) * 10; // в мм
+    
+    // Находим стены заново для точного позиционирования
+    const walls = findRightAndBottomWalls(el, r);
+    
+    if (walls.rightWall) {
+        saveState();
+        // Устанавливаем новую позицию X
+        el.x = walls.rightWall.wall.x - newRightOffset;
+    }
+    
+    if (walls.bottomWall) {
+        saveState();
+        // Устанавливаем новую позицию Y
+        el.y = walls.bottomWall.wall.y - newBottomOffset;
+    }
+    
+    closeElementOffsetModal();
+    draw();
+    
+    if (typeof showNotification === 'function') {
+        showNotification('✅ Позиция элемента обновлена');
+    }
+}
+
+function closeElementOffsetModal() {
+    const modal = document.getElementById('elementOffsetModal');
+    if (modal) modal.remove();
+}
+
+function clearSelectedElement() {
+    selectedElementForEdit = null;
+    draw();
+}
 
 // При загрузке из projects.js, нужно использовать loadProjectWithSkip
 // Но чтобы не ломать существующий код, переопределим функцию в projects.js позже
@@ -1726,6 +2023,7 @@ window.closeElementResizeModal = closeElementResizeModal;
 // В конце core.js добавьте
 
 window.editElementPosition = editElementPosition;
+
 
 
 
