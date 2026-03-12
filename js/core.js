@@ -798,20 +798,62 @@ function updateStats() {
     return totalElemCounts;
 }
 
+// В файле core.js - обновим generateFullEstimate для работы с двумя прайсами
+
 function generateFullEstimate() {
     let totalArea = 0, totalPerim = 0, globalElements = {}; 
-    rooms.forEach(r => {
+    
+    // Для детализации по материалам
+    let canvasDetails = [];
+    let profileDetails = [];
+    
+    rooms.forEach((r, roomIdx) => {
         let p = 0, a = 0;
         for(let i=0; i<r.points.length; i++) {
             let j = (i+1)%r.points.length;
             p += Math.sqrt((r.points[j].x-r.points[i].x)**2 + (r.points[j].y-r.points[i].y)**2);
             if(r.closed) a += r.points[i].x * r.points[j].y - r.points[j].x * r.points[i].y;
         }
-        totalArea += r.closed ? Math.abs(a/2)/1000000 : 0;
-        totalPerim += (p/1000);
+        const roomArea = r.closed ? Math.abs(a/2)/1000000 : 0;
+        const roomPerim = p/1000;
+        
+        totalArea += roomArea;
+        totalPerim += roomPerim;
+        
+        // Детали по полотну (из первого прайса)
+        const canvasType = r.materials?.canvasType || 'pvc_matte';
+        const canvasPrice = window.CANVAS_TYPES?.[canvasType]?.basePrice || 400;
+        canvasDetails.push({
+            roomName: r.name,
+            canvasType: window.CANVAS_TYPES?.[canvasType]?.label || 'ПВХ Матовый',
+            area: roomArea,
+            price: canvasPrice,
+            cost: roomArea * canvasPrice
+        });
+        
+        // Детали по профилям (из первого прайса)
+        if (r.materials?.wallProfiles) {
+            for (let i = 0; i < r.points.length; i++) {
+                const p1 = r.points[i];
+                const p2 = r.points[(i + 1) % r.points.length];
+                const wallLength = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2) / 1000;
+                const profileType = r.materials.wallProfiles[i] || 'wall_standard';
+                const profilePrice = window.PROFILE_TYPES?.[profileType]?.basePrice || 180;
+                
+                profileDetails.push({
+                    roomName: r.name,
+                    wallIndex: i+1,
+                    profileType: window.PROFILE_TYPES?.[profileType]?.label || 'Стеновой',
+                    length: wallLength,
+                    price: profilePrice,
+                    cost: wallLength * profilePrice
+                });
+            }
+        }
+        
+        // Элементы (из второго прайса)
         if (r.elements) {
             r.elements.forEach(el => {
-                // Используем subtype как ключ, а не type
                 let key = el.subtype || (el.type === 'pipe' ? 'pipe' : el.type);
                 if (!globalElements[key]) globalElements[key] = { count: 0, length: 0 };
                 globalElements[key].count++;
@@ -821,35 +863,48 @@ function generateFullEstimate() {
     });
     
     let totalSum = 0, rowsHTML = "";
-    let priceM2 = window.prices['Полотно (м2)'] || 0;
-    let costArea = totalArea * priceM2;
-    totalSum += costArea;
-    rowsHTML += `<tr><td>Полотно (ПВХ)</td><td>${totalArea.toFixed(2)} м²</td><td>${priceM2}</td><td>${costArea.toFixed(0)}</td></tr>`;
     
-    let priceMP = window.prices['Профиль (м.п.)'] || 0;
-    let costPerim = totalPerim * priceMP;
-    totalSum += costPerim;
-    rowsHTML += `<tr><td>Профиль стеновой</td><td>${totalPerim.toFixed(2)} м.п.</td><td>${priceMP}</td><td>${costPerim.toFixed(0)}</td></tr>`;
+    // Полотна по типам
+    let canvasByType = {};
+    canvasDetails.forEach(d => {
+        const key = d.canvasType;
+        if (!canvasByType[key]) {
+            canvasByType[key] = { area: 0, cost: 0, price: d.price };
+        }
+        canvasByType[key].area += d.area;
+        canvasByType[key].cost += d.cost;
+    });
     
+    Object.keys(canvasByType).forEach(key => {
+        const data = canvasByType[key];
+        totalSum += data.cost;
+        rowsHTML += `<tr><td>Полотно: ${key}</td><td>${data.area.toFixed(2)} м²</td><td>${data.price}</td><td>${data.cost.toFixed(0)}</td></tr>`;
+    });
+    
+    // Профили по типам
+    let profileByType = {};
+    profileDetails.forEach(d => {
+        const key = d.profileType;
+        if (!profileByType[key]) {
+            profileByType[key] = { length: 0, cost: 0, price: d.price };
+        }
+        profileByType[key].length += d.length;
+        profileByType[key].cost += d.cost;
+    });
+    
+    Object.keys(profileByType).forEach(key => {
+        const data = profileByType[key];
+        totalSum += data.cost;
+        rowsHTML += `<tr><td>Профиль: ${key}</td><td>${data.length.toFixed(2)} м.п.</td><td>${data.price}</td><td>${data.cost.toFixed(0)}</td></tr>`;
+    });
+    
+    // Элементы (из второго прайса)
     for (let key in globalElements) {
         let data = globalElements[key];
         let def = getElementDef(key);
         
-        // ИСПРАВЛЕНИЕ: используем правильный ключ для поиска цены
-        let price = 0;
-        
-        // Для специальных случаев
-        if (key === 'pipe') {
-            price = window.prices['pipe'] || 250;
-        } else {
-            // Для обычных элементов цена хранится по ключу элемента
-            price = window.prices[key] || 0;
-            
-            // Если цена не найдена, пробуем найти в данных элемента
-            if (price === 0 && def && def.price) {
-                price = def.price;
-            }
-        }
+        let price = window.prices?.[key] || 0;
+        if (price === 0 && def && def.price) price = def.price;
         
         let sum = 0;
         let qtyString = "";
@@ -1214,3 +1269,4 @@ window.closeRectangleModal = closeRectangleModal;
 window.skipRoomTypeModal = skipRoomTypeModal;
 // Добавьте эту строку к существующему экспорту
 window.setRectSize = setRectSize;
+
