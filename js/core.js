@@ -237,35 +237,79 @@ function draw(isExport = false) {
             
             if (r.closed && showMeasures) drawElementMeasures(el, r);
             
-            if (isLinear) {
-                let w = el.width || 2000;
-                let color = el.type === 'rail' ? "#fb8c00" : (el.subtype === 'TRACK' ? "#333" : "var(--light)");
-                let line = createLine(mmToPx(el.x - w/2, 'x'), mmToPx(el.y, 'y'), mmToPx(el.x + w/2, 'x'), mmToPx(el.y, 'y'), color, 5);
-                line.setAttribute("stroke-linecap", "round");
-                g.appendChild(line);
+          if (isLinear) {
+    let w = el.width || 2000;
+    let color = el.type === 'rail' ? "#fb8c00" : (el.subtype === 'TRACK' ? "#333" : "var(--light)");
+    let line = createLine(mmToPx(el.x - w/2, 'x'), mmToPx(el.y, 'y'), mmToPx(el.x + w/2, 'x'), mmToPx(el.y, 'y'), color, 5);
+    line.setAttribute("stroke-linecap", "round");
+    g.appendChild(line);
+    
+    // Создаем подпись с размером
+    let label = renderText(mmToPx(el.x, 'x'), mmToPx(el.y, 'y') - 10, `${w/10} см`, el.type === 'rail' ? "rail-label" : "light-label");
+    
+    // Добавляем обработчик клика для изменения размера
+    if (!isExport) {
+        label.style.cursor = 'pointer';
+        label.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Запоминаем текущий элемент
+            window.currentResizeElement = el;
+            
+            // Показываем диалог ввода размера
+            const currentLength = w / 10; // в см
+            const newLength = prompt(`Введите длину элемента (см):`, currentLength);
+            
+            if (newLength && !isNaN(newLength) && parseFloat(newLength) > 0) {
+                saveState();
+                el.width = parseFloat(newLength) * 10;
+                draw();
                 
-                let label = renderText(mmToPx(el.x, 'x'), mmToPx(el.y, 'y') - 10, `${w/10} см`, el.type === 'rail' ? "rail-label" : "light-label");
-                
-                if (!isExport && window.isMobile) {
-                    label.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openElementResize(el);
-                    }, { passive: false });
-                } else if (!isExport) {
-                    label.onclick = (e) => {
-                        e.stopPropagation();
-                        let nl = prompt("Длина (см):", w/10);
-                        if (nl && !isNaN(nl)) {
-                            saveState();
-                            el.width = nl * 10;
-                            draw();
-                        }
-                    };
+                // Показываем уведомление
+                if (typeof showNotification === 'function') {
+                    showNotification(`✅ Длина изменена на ${newLength} см`);
                 }
-            } else {
-                g.appendChild(drawSymbol(el, def));
             }
+        };
+        
+        // Добавляем подсказку при наведении
+        label.title = 'Нажмите, чтобы изменить длину';
+    }
+    
+    g.appendChild(label);
+} 
+         // В функции draw(), найдите блок else для нелинейных элементов
+// и добавьте обработчик клика на сам элемент
+
+else {
+    let symbol = drawSymbol(el, def);
+    g.appendChild(symbol);
+    
+    // Добавляем возможность редактировать размер для элементов, у которых есть размер
+    if (!isExport && el.width) {
+        g.style.cursor = 'pointer';
+        g.onclick = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            window.currentResizeElement = el;
+            const currentSize = el.width / 10; // в см
+            
+            const newSize = prompt(`Введите размер элемента (см):`, currentSize);
+            if (newSize && !isNaN(newSize) && parseFloat(newSize) > 0) {
+                saveState();
+                el.width = parseFloat(newSize) * 10;
+                draw();
+                
+                if (typeof showNotification === 'function') {
+                    showNotification(`✅ Размер изменен на ${newSize} см`);
+                }
+            }
+        };
+        g.title = 'Нажмите, чтобы изменить размер';
+    }
+}
             
             if (!isExport) {
                 if (window.isMobile) {
@@ -1596,6 +1640,33 @@ function loadProjectWithSkip(projectId) {
     skipRoomTypeModal = true;
     loadProject(projectId);
 }
+// Добавьте в core.js
+
+function editElementPosition(el) {
+    if (!el) return;
+    
+    const currentX = Math.round(el.x / 10); // в см
+    const currentY = Math.round(el.y / 10); // в см
+    
+    const newX = prompt(`Введите координату X (см):`, currentX);
+    if (newX === null) return;
+    
+    const newY = prompt(`Введите координату Y (см):`, currentY);
+    if (newY === null) return;
+    
+    if (!isNaN(newX) && !isNaN(newY) && parseFloat(newX) >= 0 && parseFloat(newY) >= 0) {
+        saveState();
+        el.x = parseFloat(newX) * 10;
+        el.y = parseFloat(newY) * 10;
+        draw();
+        
+        if (typeof showNotification === 'function') {
+            showNotification(`✅ Позиция изменена: X=${newX} см, Y=${newY} см`);
+        }
+    } else {
+        alert('Введите корректные значения');
+    }
+}
 
 // При загрузке из projects.js, нужно использовать loadProjectWithSkip
 // Но чтобы не ломать существующий код, переопределим функцию в projects.js позже
@@ -1652,6 +1723,7 @@ window.openElementResizeWithWalls = openElementResizeWithWalls;
 window.findNearestWalls = findNearestWalls;
 window.applyElementResizeWithWalls = applyElementResizeWithWalls;
 window.closeElementResizeModal = closeElementResizeModal;
+
 
 
 
