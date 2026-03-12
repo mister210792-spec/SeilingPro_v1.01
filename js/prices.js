@@ -111,8 +111,10 @@ function updateElementPrice(key, val) {
 }
 
 function savePrices() { 
+    // Сохраняем только цены элементов (НЕ полотна и профили)
     saveAllSettings(); 
     
+    // Обновляем элементы в облаке
     if (currentUser && currentUser.uid && db) {
         const batch = db.batch();
         const userCustomRef = db.collection('users').doc(currentUser.uid).collection('customElements');
@@ -128,7 +130,14 @@ function savePrices() {
     }
     
     closePriceModal(); 
-    if (typeof updateStats === 'function') updateStats(); 
+    if (typeof updateStats === 'function') updateStats();
+    
+    // Показываем уведомление
+    if (typeof showNotification === 'function') {
+        showNotification('✅ Цены элементов сохранены');
+    } else {
+        alert('✅ Цены элементов сохранены');
+    }
 }
 
 function deleteElement(key) {
@@ -252,3 +261,4 @@ window.toggleShapeSelect = toggleShapeSelect;
 window.addNewElementConfirm = addNewElementConfirm;
 
 window.loadCustomElementsFromFirestore = loadCustomElementsFromFirestore;
+
