@@ -38,6 +38,27 @@ function updateCurrentUser(userData) {
     currentUser = userData;
     console.log("👤 currentUser обновлен:", currentUser.email, "план:", currentUser.plan);
 }
+// Добавить в init.js или отдельный файл migration.js
+
+function migrateOldPrices() {
+    // Удаляем старые ключи из prices
+    delete prices['Полотно (м2)'];
+    delete prices['Профиль (м.п.)'];
+    
+    // Удаляем из localStorage
+    const savedPrices = localStorage.getItem('cp_prices_15');
+    if (savedPrices) {
+        const oldPrices = JSON.parse(savedPrices);
+        delete oldPrices['Полотно (м2)'];
+        delete oldPrices['Профиль (м.п.)'];
+        localStorage.setItem('cp_prices_15', JSON.stringify(oldPrices));
+    }
+    
+    console.log("✅ Миграция цен выполнена");
+}
+
+// Вызвать при загрузке приложения
+window.migrateOldPrices = migrateOldPrices;
 
 // Экспортируем
 window.updateCurrentUser = updateCurrentUser;
@@ -46,4 +67,5 @@ window.updateCurrentUser = updateCurrentUser;
 window.currentUser = currentUser;
 window.selectedRegPlan = selectedRegPlan;
 window.initializeFirebase = initializeFirebase;
+
 
