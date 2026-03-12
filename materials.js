@@ -389,6 +389,8 @@ function openMaterialPriceModal() {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
+// В файле init.js (materials.js) - исправим saveMaterialPricesFromModal
+
 function saveMaterialPricesFromModal() {
     // Сохраняем цены полотен
     document.querySelectorAll('.canvas-price-input').forEach(input => {
@@ -406,9 +408,78 @@ function saveMaterialPricesFromModal() {
         }
     });
     
+    // Сохраняем в localStorage
     saveMaterialPrices();
+    
+    // Обновляем текущую смету с новыми ценами
+    updateEstimateWithNewPrices();
+    
     closeMaterialPriceModal();
-    alert('✅ Цены материалов сохранены');
+    
+    // Показываем уведомление
+    showNotification('✅ Цены материалов сохранены');
+}
+
+// Добавим функцию для обновления сметы
+function updateEstimateWithNewPrices() {
+    // Пересчитываем все цены в текущих комнатах
+    if (rooms && rooms.length > 0) {
+        rooms.forEach(room => {
+            if (room.materials) {
+                // Обновляем стоимость полотна
+                if (room.area && room.materials.canvasType) {
+                    const canvasPrice = CANVAS_TYPES[room.materials.canvasType]?.basePrice || 400;
+                    room.materials.canvasCost = room.area * canvasPrice;
+                }
+                
+                // Обновляем стоимость профилей
+                if (room.materials.wallProfiles && room.points) {
+                    let profilesCost = 0;
+                    Object.keys(room.materials.wallProfiles).forEach(wallIndex => {
+                        const profileType = room.materials.wallProfiles[wallIndex];
+                        const p1 = room.points[wallIndex];
+                        const p2 = room.points[(parseInt(wallIndex) + 1) % room.points.length];
+                        if (p1 && p2) {
+                            const wallLength = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2) / 1000;
+                            const profilePrice = PROFILE_TYPES[profileType]?.basePrice || 180;
+                            profilesCost += wallLength * profilePrice;
+                        }
+                    });
+                    room.materials.profilesCost = profilesCost;
+                }
+            }
+        });
+        
+        // Обновляем отображение
+        if (typeof updateStats === 'function') updateStats();
+        if (typeof draw === 'function') draw();
+    }
+}
+
+// Добавим функцию для уведомлений
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed; top: 20px; right: 20px; background: #4caf50; 
+        color: white; padding: 12px 24px; border-radius: 8px; 
+        z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-weight: 500; animation: slideIn 0.3s;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s';
+        setTimeout(() => notification.remove(), 300);
+    }, 2000);
+    
+    // Добавим анимации
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+    `;
+    document.head.appendChild(style);
 }
 
 function closeMaterialPriceModal() {
@@ -555,4 +626,5 @@ window.saveMaterialPrices = saveMaterialPrices;
 window.showMaterialSelectionModal = showMaterialSelectionModal;
 window.openMaterialPriceModal = openMaterialPriceModal;
 window.saveMaterialPricesFromModal = saveMaterialPricesFromModal;
+
 window.closeMaterialPriceModal = closeMaterialPriceModal;
