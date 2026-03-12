@@ -1191,16 +1191,26 @@ function setRectSize(lengthCm, widthCm) {
     document.getElementById('rect-length').value = lengthCm;
     document.getElementById('rect-width').value = widthCm;
 }
-// Создать пустую комнату (для многоугольного режима)
+// В файле core.js - обновим функцию createEmptyRoom
+
 function createEmptyRoom() {
     saveState();
+    
+    // Загружаем актуальные цены материалов
+    if (typeof loadMaterialPrices === 'function') {
+        loadMaterialPrices();
+    }
     
     rooms.push({
         name: "Полотно " + (rooms.length + 1),
         points: [],
         id: Date.now(),
         closed: false,
-        elements: []
+        elements: [],
+        materials: {
+            canvasType: 'pvc_matte',
+            wallProfiles: {}
+        }
     });
     
     activeRoom = rooms.length - 1;
@@ -1269,4 +1279,5 @@ window.closeRectangleModal = closeRectangleModal;
 window.skipRoomTypeModal = skipRoomTypeModal;
 // Добавьте эту строку к существующему экспорту
 window.setRectSize = setRectSize;
+
 
