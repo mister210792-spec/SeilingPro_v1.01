@@ -1723,6 +1723,10 @@ window.openElementResizeWithWalls = openElementResizeWithWalls;
 window.findNearestWalls = findNearestWalls;
 window.applyElementResizeWithWalls = applyElementResizeWithWalls;
 window.closeElementResizeModal = closeElementResizeModal;
+// В конце core.js добавьте
+
+window.editElementPosition = editElementPosition;
+
 
 
 
