@@ -221,6 +221,22 @@
         💰 Редактировать цены материалов
     </button>
 </div>
+        <!-- После блока с материалами -->
+<div class="menu-section">
+    <h3>✏️ Редактирование элемента</h3>
+    <button onclick="openElementOffsetEditor()" style="border-color: #9c27b0; color: #9c27b0; margin-bottom: 5px;">
+        📏 Изменить отступы от стен
+    </button>
+    <button onclick="clearSelectedElement()" style="border-color: #ff5252; color: #ff5252;">
+        ✖️ Снять выделение
+    </button>
+    <p style="font-size: 11px; color: #666; margin-top: 5px;">
+        * Выберите элемент: <strong>Ctrl + клик</strong> на элементе
+    </p>
+    <p style="font-size: 11px; color: #666; margin-top: 0;">
+        * Выделенный элемент подсвечивается пунктиром
+    </p>
+</div>
          <div class="menu-section">
     <h3>✏️ Редактирование</h3>
     <button onclick="if(rooms[activeRoom]?.elements?.length > 0) { 
@@ -660,4 +676,5 @@
     });
 
 </script></html>
+
 
