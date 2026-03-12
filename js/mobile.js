@@ -297,6 +297,8 @@ function addMobileElement(type) {
     draw();
 }
 
+// В mobile.js, в функции showElementContextMenu добавьте новый пункт
+
 function showElementContextMenu(el) {
     const menu = document.getElementById('elementContextMenu');
     if (!menu) {
@@ -315,6 +317,30 @@ function showElementContextMenu(el) {
         lengthItem.style.display = hasLength ? 'block' : 'none';
     }
     
+    // Добавляем пункт "Редактировать размеры относительно стен"
+    const resizeWithWallsItem = document.getElementById('menu-resize-with-walls');
+    if (!resizeWithWallsItem) {
+        // Создаем новый пункт меню, если его нет
+        const newItem = document.createElement('div');
+        newItem.className = 'context-menu-item';
+        newItem.id = 'menu-resize-with-walls';
+        newItem.innerHTML = '📐 Редактировать размеры';
+        newItem.onclick = () => {
+            closeElementContextMenu();
+            if (typeof openElementResizeWithWalls === 'function') {
+                openElementResizeWithWalls(el);
+            }
+        };
+        
+        // Вставляем после меню длины
+        const editLengthItem = document.getElementById('menu-edit-length');
+        if (editLengthItem) {
+            editLengthItem.parentNode.insertBefore(newItem, editLengthItem.nextSibling);
+        }
+    } else {
+        resizeWithWallsItem.style.display = 'block';
+    }
+    
     const rotateItem = document.getElementById('menu-rotate');
     if (rotateItem) {
         rotateItem.style.display = 'block';
@@ -330,7 +356,6 @@ function showElementContextMenu(el) {
         }
     }
 }
-
 function closeElementContextMenu() {
     document.getElementById('elementContextMenu').style.display = 'none';
     setTimeout(() => {
@@ -663,3 +688,4 @@ window.handleElementTouchStart = handleElementTouchStart;
 window.handleElementTouchEnd = handleElementTouchEnd;
 
 window.handleElementTouchMove = handleElementTouchMove;
+
