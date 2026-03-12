@@ -319,4 +319,15 @@ window.renderTabs = function() {
     if (is3DMode) {
         setTimeout(update3D, 100);
     }
+    // Обработка изменения размера окна
+window.addEventListener('resize', onWindowResize, false);
+
+function onWindowResize() {
+    if (!is3DMode) return;
+    
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
 };
