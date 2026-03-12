@@ -1646,6 +1646,13 @@ window.closeRectangleModal = closeRectangleModal;
 window.skipRoomTypeModal = skipRoomTypeModal;
 // Добавьте эту строку к существующему экспорту
 window.setRectSize = setRectSize;
+// В конце core.js добавьте экспорт новых функций
+
+window.openElementResizeWithWalls = openElementResizeWithWalls;
+window.findNearestWalls = findNearestWalls;
+window.applyElementResizeWithWalls = applyElementResizeWithWalls;
+window.closeElementResizeModal = closeElementResizeModal;
+
 
 
 
