@@ -317,28 +317,39 @@ function showElementContextMenu(el) {
         lengthItem.style.display = hasLength ? 'block' : 'none';
     }
     
-    // Добавляем пункт "Редактировать размеры относительно стен"
-    const resizeWithWallsItem = document.getElementById('menu-resize-with-walls');
-    if (!resizeWithWallsItem) {
-        // Создаем новый пункт меню, если его нет
-        const newItem = document.createElement('div');
-        newItem.className = 'context-menu-item';
-        newItem.id = 'menu-resize-with-walls';
-        newItem.innerHTML = '📐 Редактировать размеры';
-        newItem.onclick = () => {
+    // Добавляем пункт для редактирования позиции
+    let positionItem = document.getElementById('menu-edit-position');
+    if (!positionItem) {
+        positionItem = document.createElement('div');
+        positionItem.className = 'context-menu-item';
+        positionItem.id = 'menu-edit-position';
+        positionItem.innerHTML = '📍 Изменить позицию';
+        positionItem.onclick = () => {
             closeElementContextMenu();
-            if (typeof openElementResizeWithWalls === 'function') {
-                openElementResizeWithWalls(el);
+            if (typeof editElementPosition === 'function') {
+                editElementPosition(el);
+            } else {
+                // Fallback если функция не найдена
+                const newX = prompt('Введите координату X (см):', Math.round(el.x/10));
+                const newY = prompt('Введите координату Y (см):', Math.round(el.y/10));
+                if (newX && newY && !isNaN(newX) && !isNaN(newY)) {
+                    saveState();
+                    el.x = parseFloat(newX) * 10;
+                    el.y = parseFloat(newY) * 10;
+                    draw();
+                }
             }
         };
         
         // Вставляем после меню длины
         const editLengthItem = document.getElementById('menu-edit-length');
         if (editLengthItem) {
-            editLengthItem.parentNode.insertBefore(newItem, editLengthItem.nextSibling);
+            editLengthItem.parentNode.insertBefore(positionItem, editLengthItem.nextSibling);
+        } else {
+            menu.querySelector('.context-menu-content').appendChild(positionItem);
         }
     } else {
-        resizeWithWallsItem.style.display = 'block';
+        positionItem.style.display = 'block';
     }
     
     const rotateItem = document.getElementById('menu-rotate');
@@ -688,4 +699,5 @@ window.handleElementTouchStart = handleElementTouchStart;
 window.handleElementTouchEnd = handleElementTouchEnd;
 
 window.handleElementTouchMove = handleElementTouchMove;
+
 
