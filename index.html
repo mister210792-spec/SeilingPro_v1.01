@@ -95,6 +95,8 @@
             <div class="view-controls">
                 <button onclick="undo()" class="action-btn">Отменить</button>
                 <button onclick="exportImage()" class="action-btn export-btn">💾 PNG</button>
+                <button onclick="toggle3D()" class="action-btn" style="background: #9c27b0; color: white;">3D</button>
+</div>
             </div>
         </div>
         
@@ -129,6 +131,7 @@
             <span class="btn-icon">💾</span>
             <span class="btn-label">PNG</span>
         </button>
+        <button onclick="toggle3D()" class="mobile-project-btn" style="background: #9c27b0; color: white;">
     </div>
 </div>
 <div class="main-layout">
@@ -549,7 +552,17 @@
             <button onclick="closeRectangleModal()" style="flex: 1; background: #eee; border: none; padding: 12px;">Отмена</button>
         </div>
     </div>
-</div></body>
+</div>
+    <!-- Подключаем Three.js -->
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+    }
+  }
+</script>
+</body>
 <script>
     // Функция для открытия/закрытия бокового меню на мобильных
     function toggleSideMenu() {
@@ -645,3 +658,4 @@
     });
 
 </script></html>
+
