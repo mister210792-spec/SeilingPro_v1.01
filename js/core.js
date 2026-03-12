@@ -2023,6 +2023,12 @@ window.closeElementResizeModal = closeElementResizeModal;
 // В конце core.js добавьте
 
 window.editElementPosition = editElementPosition;
+window.selectedElementForEdit = selectedElementForEdit;
+window.selectElementForEdit = selectElementForEdit;
+window.openElementOffsetEditor = openElementOffsetEditor;
+window.applyElementOffsets = applyElementOffsets;
+window.closeElementOffsetModal = closeElementOffsetModal;
+window.clearSelectedElement = clearSelectedElement;
 
 
 
