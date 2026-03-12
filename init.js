@@ -416,7 +416,8 @@ function closeMaterialPriceModal() {
     if (modal) modal.remove();
 }
 
-// Модифицируем generateFullEstimate для учета разных профилей
+// В файле core.js - обновим generateFullEstimate для работы с двумя прайсами
+
 function generateFullEstimate() {
     let totalArea = 0, totalPerim = 0, globalElements = {}; 
     
@@ -437,30 +438,30 @@ function generateFullEstimate() {
         totalArea += roomArea;
         totalPerim += roomPerim;
         
-        // Детали по полотну
+        // Детали по полотну (из первого прайса)
         const canvasType = r.materials?.canvasType || 'pvc_matte';
-        const canvasPrice = CANVAS_TYPES[canvasType]?.basePrice || 400;
+        const canvasPrice = window.CANVAS_TYPES?.[canvasType]?.basePrice || 400;
         canvasDetails.push({
             roomName: r.name,
-            canvasType: CANVAS_TYPES[canvasType]?.label || 'ПВХ Матовый',
+            canvasType: window.CANVAS_TYPES?.[canvasType]?.label || 'ПВХ Матовый',
             area: roomArea,
             price: canvasPrice,
             cost: roomArea * canvasPrice
         });
         
-        // Детали по профилям (по стенам)
+        // Детали по профилям (из первого прайса)
         if (r.materials?.wallProfiles) {
             for (let i = 0; i < r.points.length; i++) {
                 const p1 = r.points[i];
                 const p2 = r.points[(i + 1) % r.points.length];
                 const wallLength = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2) / 1000;
                 const profileType = r.materials.wallProfiles[i] || 'wall_standard';
-                const profilePrice = PROFILE_TYPES[profileType]?.basePrice || 180;
+                const profilePrice = window.PROFILE_TYPES?.[profileType]?.basePrice || 180;
                 
                 profileDetails.push({
                     roomName: r.name,
                     wallIndex: i+1,
-                    profileType: PROFILE_TYPES[profileType]?.label || 'Стеновой',
+                    profileType: window.PROFILE_TYPES?.[profileType]?.label || 'Стеновой',
                     length: wallLength,
                     price: profilePrice,
                     cost: wallLength * profilePrice
@@ -468,7 +469,7 @@ function generateFullEstimate() {
             }
         }
         
-        // Элементы (как было)
+        // Элементы (из второго прайса)
         if (r.elements) {
             r.elements.forEach(el => {
                 let key = el.subtype || (el.type === 'pipe' ? 'pipe' : el.type);
@@ -515,12 +516,12 @@ function generateFullEstimate() {
         rowsHTML += `<tr><td>Профиль: ${key}</td><td>${data.length.toFixed(2)} м.п.</td><td>${data.price}</td><td>${data.cost.toFixed(0)}</td></tr>`;
     });
     
-    // Элементы (как было)
+    // Элементы (из второго прайса)
     for (let key in globalElements) {
         let data = globalElements[key];
         let def = getElementDef(key);
         
-        let price = window.prices[key] || 0;
+        let price = window.prices?.[key] || 0;
         if (price === 0 && def && def.price) price = def.price;
         
         let sum = 0;
@@ -555,4 +556,5 @@ window.saveMaterialPrices = saveMaterialPrices;
 window.showMaterialSelectionModal = showMaterialSelectionModal;
 window.openMaterialPriceModal = openMaterialPriceModal;
 window.saveMaterialPricesFromModal = saveMaterialPricesFromModal;
+
 window.closeMaterialPriceModal = closeMaterialPriceModal;
