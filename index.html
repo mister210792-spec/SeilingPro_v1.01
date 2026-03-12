@@ -221,6 +221,21 @@
         💰 Редактировать цены материалов
     </button>
 </div>
+         <div class="menu-section">
+    <h3>✏️ Редактирование</h3>
+    <button onclick="if(rooms[activeRoom]?.elements?.length > 0) { 
+        const el = rooms[activeRoom].elements[0]; 
+        openElementResizeWithWalls(el); 
+    } else { 
+        alert('Сначала добавьте элемент'); 
+    }" style="border-color: #9c27b0; color: #9c27b0;">
+        📐 Точное позиционирование элемента
+    </button>
+    <p style="font-size: 11px; color: #666; margin-top: 5px;">
+        * Выберите элемент на холсте, затем нажмите эту кнопку
+    </p>
+</div>
+        
         <div class="stat-card">
             <div id="roomTitle" onclick="renameRoom()">Текущий замер</div>
             <div class="stat-row"><span>Площадь:</span> <span id="currentArea" class="stat-val">0.00 м²</span></div>
@@ -645,3 +660,4 @@
     });
 
 </script></html>
+
