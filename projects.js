@@ -5,25 +5,38 @@ let prices = {
     'pipe': 250
 };
 
+// В файле projects.js - изменим функцию loadAllSettings
+
 function loadAllSettings() {
-    const savedPrices = localStorage.getItem('cp_prices_15');
+    // Убираем загрузку старых цен для полотен и профилей
+    // Оставляем только загрузку цен элементов
+    
     const savedLights = localStorage.getItem('cp_lights_15');
     const savedExtras = localStorage.getItem('cp_extras_15');
     const savedRails = localStorage.getItem('cp_rails_15');
     const savedCustom = localStorage.getItem('cp_custom_15');
 
-    if (savedPrices) prices = JSON.parse(savedPrices);
+    // Загружаем только элементы, но НЕ полотна и профили
     if (savedLights) LIGHT_DATA = JSON.parse(savedLights);
     if (savedExtras) EXTRA_DATA = JSON.parse(savedExtras);
     if (savedRails) RAIL_DATA = JSON.parse(savedRails);
     if (savedCustom) CUSTOM_REGISTRY = JSON.parse(savedCustom);
 
+    // Обновляем цены только для элементов
     [LIGHT_DATA, EXTRA_DATA, RAIL_DATA].forEach(data => {
         for (let key in data) {
-            if (prices[key] === undefined) prices[key] = data[key].price;
-            else data[key].price = prices[key];
+            // Проверяем, что это не полотно и не профиль
+            if (!key.includes('canvas') && !key.includes('profile')) {
+                if (prices[key] === undefined) prices[key] = data[key].price;
+                else data[key].price = prices[key];
+            }
         }
     });
+    
+    // Загружаем цены полотен и профилей из materials.js
+    if (typeof loadMaterialPrices === 'function') {
+        loadMaterialPrices();
+    }
 }
 
 function saveAllSettings() {
@@ -52,17 +65,21 @@ function closePriceModal() {
     document.getElementById('priceModal').style.display = 'none'; 
 }
 
+// В файле projects.js - изменим renderPriceList
+
 function renderPriceList() {
     const container = document.getElementById('priceListContainer');
     let html = `<table class="price-table"><thead><tr><th>Наименование</th><th>Цена (руб)</th><th>Действие</th></tr></thead><tbody>`;
     
-    ['Полотно (м2)', 'Профиль (м.п.)', 'pipe'].forEach(key => {
-        let label = key === 'pipe' ? 'Обвод трубы' : key;
-        html += `<tr><td><b>${label}</b></td><td><input type="number" id="prc_${key}" value="${prices[key]}" onchange="updatePrice('${key}', this.value)"></td><td>-</td></tr>`;
-    });
+    // Убираем строки для полотна и профиля - они теперь в отдельном прайсе
+    // Оставляем только 'pipe' и другие элементы
+    html += `<tr><td><b>Обвод трубы</b></td><td><input type="number" id="prc_pipe" value="${prices['pipe'] || 250}" onchange="updatePrice('pipe', this.value)"></td><td>-</td></tr>`;
 
     const renderCategory = (data) => {
         for (let key in data) {
+            // Пропускаем ключи, которые могут конфликтовать с материалами
+            if (key.includes('canvas') || key.includes('profile')) continue;
+            
             let el = data[key];
             let typeLabel = el.type === 'linear' ? '(м.п.)' : '(шт)';
             html += `<tr>
@@ -233,4 +250,5 @@ window.deleteElement = deleteElement;
 window.toggleAddForm = toggleAddForm;
 window.toggleShapeSelect = toggleShapeSelect;
 window.addNewElementConfirm = addNewElementConfirm;
+
 window.loadCustomElementsFromFirestore = loadCustomElementsFromFirestore;
