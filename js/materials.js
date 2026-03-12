@@ -372,7 +372,7 @@ function openMaterialPriceModal() {
                 </div>
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #eee; padding-top: 15px;">
-                    <button onclick="saveMaterialPrices()" style="background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px;">
+                    <button onclick="saveMaterialPricesFromModal()" style="background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px;">
                         Сохранить цены
                     </button>
                     <button onclick="closeMaterialPriceModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 8px;">
@@ -628,3 +628,4 @@ window.openMaterialPriceModal = openMaterialPriceModal;
 window.saveMaterialPricesFromModal = saveMaterialPricesFromModal;
 
 window.closeMaterialPriceModal = closeMaterialPriceModal;
+
