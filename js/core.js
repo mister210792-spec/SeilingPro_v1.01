@@ -992,7 +992,374 @@ function resizeWall(i) {
         draw();
     }
 }
+// Добавьте в core.js после функции resizeWall
 
+function openElementResizeWithWalls(el) {
+    const r = rooms[activeRoom];
+    if (!r || !r.closed) {
+        alert("Сначала замкните контур помещения");
+        return;
+    }
+    
+    // Находим ближайшие стены для элемента
+    const walls = findNearestWalls(el, r);
+    
+    // Сохраняем текущие размеры
+    const currentLength = Math.round(el.width / 10); // в см
+    const currentX = Math.round(el.x / 10); // в см
+    const currentY = Math.round(el.y / 10); // в см
+    
+    // Создаем модальное окно
+    const modalHtml = `
+        <div id="elementResizeModal" class="modal" style="display: block; z-index: 7000;">
+            <div class="modal-content" style="width: 450px; max-width: 95%;">
+                <h3 style="margin-top: 0; color: var(--dark);">✏️ Редактирование элемента</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <p><strong>Элемент:</strong> ${getElementDef(el.subtype)?.label || el.subtype}</p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">📏 Длина элемента</h4>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="elem-length-slider" min="10" max="500" value="${currentLength}" step="5" style="flex: 1;">
+                        <input type="number" id="elem-length-input" value="${currentLength}" min="10" max="500" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                        <span>см</span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">📐 Позиция относительно стен</h4>
+                    
+                    ${walls.leftWall !== null ? `
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>От левой стены:</span>
+                            <span id="left-wall-distance">${Math.round(walls.leftWall.distance / 10)} см</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="left-wall-slider" min="0" max="${Math.round(walls.rightWall?.distance / 10 || 500)}" value="${Math.round(walls.leftWall.distance / 10)}" step="5" style="flex: 1;">
+                            <input type="number" id="left-wall-input" value="${Math.round(walls.leftWall.distance / 10)}" min="0" max="${Math.round(walls.rightWall?.distance / 10 || 500)}" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                            <span>см</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${walls.topWall !== null ? `
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>От верхней стены:</span>
+                            <span id="top-wall-distance">${Math.round(walls.topWall.distance / 10)} см</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="top-wall-slider" min="0" max="${Math.round(walls.bottomWall?.distance / 10 || 500)}" value="${Math.round(walls.topWall.distance / 10)}" step="5" style="flex: 1;">
+                            <input type="number" id="top-wall-input" value="${Math.round(walls.topWall.distance / 10)}" min="0" max="${Math.round(walls.bottomWall?.distance / 10 || 500)}" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                            <span>см</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${walls.rightWall !== null ? `
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>От правой стены:</span>
+                            <span id="right-wall-distance">${Math.round(walls.rightWall.distance / 10)} см</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="right-wall-slider" min="0" max="${Math.round((walls.rightWall.maxDistance) / 10)}" value="${Math.round(walls.rightWall.distance / 10)}" step="5" style="flex: 1;">
+                            <input type="number" id="right-wall-input" value="${Math.round(walls.rightWall.distance / 10)}" min="0" max="${Math.round((walls.rightWall.maxDistance) / 10)}" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                            <span>см</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${walls.bottomWall !== null ? `
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>От нижней стены:</span>
+                            <span id="bottom-wall-distance">${Math.round(walls.bottomWall.distance / 10)} см</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="bottom-wall-slider" min="0" max="${Math.round((walls.bottomWall.maxDistance) / 10)}" value="${Math.round(walls.bottomWall.distance / 10)}" step="5" style="flex: 1;">
+                            <input type="number" id="bottom-wall-input" value="${Math.round(walls.bottomWall.distance / 10)}" min="0" max="${Math.round((walls.bottomWall.maxDistance) / 10)}" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                            <span>см</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div style="background: #f0f7fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0;">🔄 Поворот элемента</h4>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="range" id="elem-rotation-slider" min="0" max="360" value="${el.rotation || 0}" step="5" style="flex: 1;">
+                        <input type="number" id="elem-rotation-input" value="${el.rotation || 0}" min="0" max="360" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                        <span>°</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #eee; padding-top: 15px;">
+                    <button onclick="applyElementResizeWithWalls()" style="background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px;">
+                        Применить
+                    </button>
+                    <button onclick="closeElementResizeModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 8px;">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Удаляем старое модальное окно
+    const oldModal = document.getElementById('elementResizeModal');
+    if (oldModal) oldModal.remove();
+    
+    // Добавляем новое
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Сохраняем элемент в глобальной переменной
+    window.currentResizeElement = el;
+    window.currentResizeWalls = walls;
+    
+    // Добавляем обработчики для слайдеров
+    setupResizeEventListeners(el, walls);
+}
+
+function findNearestWalls(el, room) {
+    const result = {
+        leftWall: null,
+        rightWall: null,
+        topWall: null,
+        bottomWall: null
+    };
+    
+    // Находим все стены (отрезки между точками)
+    const walls = [];
+    for (let i = 0; i < room.points.length; i++) {
+        const p1 = room.points[i];
+        const p2 = room.points[(i + 1) % room.points.length];
+        
+        // Определяем ориентацию стены
+        if (Math.abs(p1.x - p2.x) < 1) {
+            // Вертикальная стена
+            walls.push({
+                type: 'vertical',
+                x: p1.x,
+                yMin: Math.min(p1.y, p2.y),
+                yMax: Math.max(p1.y, p2.y),
+                p1, p2
+            });
+        } else if (Math.abs(p1.y - p2.y) < 1) {
+            // Горизонтальная стена
+            walls.push({
+                type: 'horizontal',
+                y: p1.y,
+                xMin: Math.min(p1.x, p2.x),
+                xMax: Math.max(p1.x, p2.x),
+                p1, p2
+            });
+        }
+    }
+    
+    // Ищем ближайшие стены
+    let leftDist = Infinity, rightDist = Infinity;
+    let topDist = Infinity, bottomDist = Infinity;
+    
+    walls.forEach(wall => {
+        if (wall.type === 'vertical') {
+            // Для вертикальных стен проверяем расстояние по X
+            if (el.y >= wall.yMin && el.y <= wall.yMax) {
+                const dist = Math.abs(el.x - wall.x);
+                if (wall.x < el.x && dist < leftDist) {
+                    leftDist = dist;
+                    result.leftWall = {
+                        wall,
+                        distance: dist,
+                        maxDistance: Math.abs(wall.x - (wall.x < el.x ? 10000 : -10000))
+                    };
+                } else if (wall.x > el.x && dist < rightDist) {
+                    rightDist = dist;
+                    result.rightWall = {
+                        wall,
+                        distance: dist,
+                        maxDistance: Math.abs(wall.x - (wall.x > el.x ? -10000 : 10000))
+                    };
+                }
+            }
+        } else if (wall.type === 'horizontal') {
+            // Для горизонтальных стен проверяем расстояние по Y
+            if (el.x >= wall.xMin && el.x <= wall.xMax) {
+                const dist = Math.abs(el.y - wall.y);
+                if (wall.y < el.y && dist < topDist) {
+                    topDist = dist;
+                    result.topWall = {
+                        wall,
+                        distance: dist,
+                        maxDistance: Math.abs(wall.y - (wall.y < el.y ? 10000 : -10000))
+                    };
+                } else if (wall.y > el.y && dist < bottomDist) {
+                    bottomDist = dist;
+                    result.bottomWall = {
+                        wall,
+                        distance: dist,
+                        maxDistance: Math.abs(wall.y - (wall.y > el.y ? -10000 : 10000))
+                    };
+                }
+            }
+        }
+    });
+    
+    return result;
+}
+
+function setupResizeEventListeners(el, walls) {
+    // Длина элемента
+    const lengthSlider = document.getElementById('elem-length-slider');
+    const lengthInput = document.getElementById('elem-length-input');
+    
+    if (lengthSlider && lengthInput) {
+        lengthSlider.addEventListener('input', () => {
+            lengthInput.value = lengthSlider.value;
+        });
+        lengthInput.addEventListener('input', () => {
+            lengthSlider.value = lengthInput.value;
+        });
+    }
+    
+    // Отступ от левой стены
+    const leftSlider = document.getElementById('left-wall-slider');
+    const leftInput = document.getElementById('left-wall-input');
+    if (leftSlider && leftInput && walls.leftWall) {
+        leftSlider.addEventListener('input', () => {
+            leftInput.value = leftSlider.value;
+            document.getElementById('left-wall-distance').textContent = leftSlider.value;
+        });
+        leftInput.addEventListener('input', () => {
+            leftSlider.value = leftInput.value;
+            document.getElementById('left-wall-distance').textContent = leftInput.value;
+        });
+    }
+    
+    // Отступ от верхней стены
+    const topSlider = document.getElementById('top-wall-slider');
+    const topInput = document.getElementById('top-wall-input');
+    if (topSlider && topInput && walls.topWall) {
+        topSlider.addEventListener('input', () => {
+            topInput.value = topSlider.value;
+            document.getElementById('top-wall-distance').textContent = topSlider.value;
+        });
+        topInput.addEventListener('input', () => {
+            topSlider.value = topInput.value;
+            document.getElementById('top-wall-distance').textContent = topInput.value;
+        });
+    }
+    
+    // Отступ от правой стены
+    const rightSlider = document.getElementById('right-wall-slider');
+    const rightInput = document.getElementById('right-wall-input');
+    if (rightSlider && rightInput && walls.rightWall) {
+        rightSlider.addEventListener('input', () => {
+            rightInput.value = rightSlider.value;
+            document.getElementById('right-wall-distance').textContent = rightSlider.value;
+        });
+        rightInput.addEventListener('input', () => {
+            rightSlider.value = rightInput.value;
+            document.getElementById('right-wall-distance').textContent = rightInput.value;
+        });
+    }
+    
+    // Отступ от нижней стены
+    const bottomSlider = document.getElementById('bottom-wall-slider');
+    const bottomInput = document.getElementById('bottom-wall-input');
+    if (bottomSlider && bottomInput && walls.bottomWall) {
+        bottomSlider.addEventListener('input', () => {
+            bottomInput.value = bottomSlider.value;
+            document.getElementById('bottom-wall-distance').textContent = bottomSlider.value;
+        });
+        bottomInput.addEventListener('input', () => {
+            bottomSlider.value = bottomInput.value;
+            document.getElementById('bottom-wall-distance').textContent = bottomInput.value;
+        });
+    }
+    
+    // Поворот
+    const rotSlider = document.getElementById('elem-rotation-slider');
+    const rotInput = document.getElementById('elem-rotation-input');
+    if (rotSlider && rotInput) {
+        rotSlider.addEventListener('input', () => {
+            rotInput.value = rotSlider.value;
+        });
+        rotInput.addEventListener('input', () => {
+            rotSlider.value = rotInput.value;
+        });
+    }
+}
+
+function applyElementResizeWithWalls() {
+    const el = window.currentResizeElement;
+    const walls = window.currentResizeWalls;
+    if (!el) return;
+    
+    saveState();
+    
+    // Применяем новую длину
+    const lengthInput = document.getElementById('elem-length-input');
+    if (lengthInput) {
+        el.width = parseFloat(lengthInput.value) * 10;
+    }
+    
+    // Применяем новые отступы от стен
+    if (walls.leftWall) {
+        const leftInput = document.getElementById('left-wall-input');
+        if (leftInput) {
+            const newDist = parseFloat(leftInput.value) * 10;
+            el.x = walls.leftWall.wall.x + (walls.leftWall.wall.x < el.x ? newDist : -newDist);
+        }
+    }
+    
+    if (walls.topWall) {
+        const topInput = document.getElementById('top-wall-input');
+        if (topInput) {
+            const newDist = parseFloat(topInput.value) * 10;
+            el.y = walls.topWall.wall.y + (walls.topWall.wall.y < el.y ? newDist : -newDist);
+        }
+    }
+    
+    if (walls.rightWall) {
+        const rightInput = document.getElementById('right-wall-input');
+        if (rightInput) {
+            const newDist = parseFloat(rightInput.value) * 10;
+            el.x = walls.rightWall.wall.x - (walls.rightWall.wall.x > el.x ? newDist : -newDist);
+        }
+    }
+    
+    if (walls.bottomWall) {
+        const bottomInput = document.getElementById('bottom-wall-input');
+        if (bottomInput) {
+            const newDist = parseFloat(bottomInput.value) * 10;
+            el.y = walls.bottomWall.wall.y - (walls.bottomWall.wall.y > el.y ? newDist : -newDist);
+        }
+    }
+    
+    // Применяем поворот
+    const rotInput = document.getElementById('elem-rotation-input');
+    if (rotInput) {
+        el.rotation = parseFloat(rotInput.value) % 360;
+    }
+    
+    closeElementResizeModal();
+    draw();
+    
+    if (typeof showNotification === 'function') {
+        showNotification('✅ Элемент обновлен');
+    }
+}
+
+function closeElementResizeModal() {
+    const modal = document.getElementById('elementResizeModal');
+    if (modal) modal.remove();
+    window.currentResizeElement = null;
+    window.currentResizeWalls = null;
+}
 function drawSmartGuides(currentX, currentY, excludeId) {
     let r = rooms[activeRoom];
     if (!r) return;
@@ -1279,5 +1646,6 @@ window.closeRectangleModal = closeRectangleModal;
 window.skipRoomTypeModal = skipRoomTypeModal;
 // Добавьте эту строку к существующему экспорту
 window.setRectSize = setRectSize;
+
 
 
