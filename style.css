@@ -1968,3 +1968,121 @@ button[onclick="smartLightingOptimization()"]:active {
     border: none;
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
+/* Стили для модального окна информации о клиенте */
+#clientInfoModal .modal-content {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+#clientInfoModal textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+#clientInfoModal .auth-input {
+    margin-bottom: 10px;
+}
+
+/* Стили для улучшенного отображения проектов */
+.project-info {
+    flex: 1;
+    min-width: 0; /* Для переноса текста */
+}
+
+.project-info .project-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.project-info .project-meta {
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+/* Стили для кнопок действий */
+.project-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.project-actions button {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.project-actions .btn-load {
+    background: var(--success);
+    color: white;
+}
+
+.project-actions .btn-load:hover {
+    background: #43a047;
+    transform: translateY(-2px);
+}
+
+.project-actions .btn-info {
+    background: #e3f2fd;
+    color: #1976d2;
+    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.project-actions .btn-info:hover {
+    background: #bbdefb;
+    transform: scale(1.1);
+}
+
+.project-actions .btn-delete {
+    background: #ffebee;
+    color: var(--danger);
+    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.project-actions .btn-delete:hover {
+    background: var(--danger);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .project-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .project-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .project-info .project-name {
+        font-size: 14px;
+    }
+    
+    .project-info .project-meta {
+        font-size: 10px;
+    }
+}
