@@ -908,4 +908,6 @@ window.openMaterialPriceModal = openMaterialPriceModal;
 window.saveMaterialPricesFromModal = saveMaterialPricesFromModal;
 
 window.closeMaterialPriceModal = closeMaterialPriceModal;
+window.toggleNoProfile = toggleNoProfile;
+window.toggleInsertSettings = toggleInsertSettings;
 
