@@ -1,7 +1,10 @@
 // js/ai-lighting.js
-// ИИ-ассистент для оптимизации освещения
+// ИСПРАВЛЕННАЯ ВЕРСИЯ - правильно расставляет освещение
 
-// Вспомогательные функции из core.js (дублируем для модульности)
+// Сохраняем выбранный тип светильников глобально
+let selectedMainLightType = 'GX53';
+
+// Вспомогательные функции
 function calculateRoomArea(room) {
     if (!room.closed || room.points.length < 3) return 0;
     
@@ -28,9 +31,10 @@ function getRoomBounds(room) {
 
 function getCeilingHeight() {
     const bounds = getRoomBounds(rooms[activeRoom]);
-    return (bounds.maxY - bounds.minY) / 1000;
+    return ((bounds.maxY - bounds.minY) / 1000) || 2.7; // по умолчанию 2.7м
 }
 
+// УЛУЧШЕННАЯ проверка точки внутри многоугольника
 function isPointInPolygon(point, polygon) {
     let inside = false;
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -44,18 +48,7 @@ function isPointInPolygon(point, polygon) {
     return inside;
 }
 
-function getDistanceToWalls(point, polygon) {
-    let minDistance = Infinity;
-    for (let i = 0; i < polygon.length; i++) {
-        const p1 = polygon[i];
-        const p2 = polygon[(i + 1) % polygon.length];
-        
-        const dist = distancePointToSegment(point, p1, p2);
-        minDistance = Math.min(minDistance, dist);
-    }
-    return minDistance;
-}
-
+// Расстояние от точки до отрезка
 function distancePointToSegment(point, p1, p2) {
     const A = point.x - p1.x;
     const B = point.y - p1.y;
@@ -86,7 +79,19 @@ function distancePointToSegment(point, p1, p2) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-// Основной класс ИИ-ассистента
+// Расстояние до ближайшей стены
+function getDistanceToWalls(point, polygon) {
+    let minDistance = Infinity;
+    for (let i = 0; i < polygon.length; i++) {
+        const p1 = polygon[i];
+        const p2 = polygon[(i + 1) % polygon.length];
+        const dist = distancePointToSegment(point, p1, p2);
+        minDistance = Math.min(minDistance, dist);
+    }
+    return minDistance;
+}
+
+// ОСНОВНОЙ КЛАСС - ИСПРАВЛЕННЫЙ
 class LightingAIAssistant {
     constructor(room, roomType, mainFixtureType) {
         this.room = room;
@@ -96,24 +101,51 @@ class LightingAIAssistant {
         this.bounds = getRoomBounds(room);
         this.area = calculateRoomArea(room);
         this.height = getCeilingHeight();
+        this.center = this.findRoomCenter();
     }
     
     calculateOptimalLayout() {
         const requirements = this.calculateLightingRequirements();
-        const candidates = this.generateCandidates(requirements);
+        
+        // Генерируем кандидаты в зависимости от типа
+        let candidates = [];
+        
+        if (this.mainFixtureType === 'CHANDELIER') {
+            // Люстра - одна по центру
+            candidates = [{
+                x: this.center.x,
+                y: this.center.y,
+                type: 'main',
+                priority: 10
+            }];
+        } else if (this.mainFixtureType === 'TRACK') {
+            // Трековая система
+            candidates = this.generateTrackPositions();
+        } else {
+            // Точечные светильники - УЛУЧШЕННАЯ генерация
+            candidates = this.generateImprovedGridPositions(requirements);
+        }
+        
+        // Фильтруем позиции (только внутри комнаты)
         const validPositions = this.filterValidPositions(candidates);
+        
+        // Оптимизируем расстояния
         const optimized = this.optimizePositions(validPositions, requirements);
         
+        // Генерируем акцентное и периметральное освещение
+        const accent = this.generateAccentPositions();
+        const perimeter = this.generatePerimeterPositions();
+        
         return {
-            main: optimized.main,
-            accent: optimized.accent,
-            perimeter: optimized.perimeter,
+            main: optimized,
+            accent: accent,
+            perimeter: perimeter,
             stats: {
                 area: this.area,
                 requiredLux: requirements.requiredLux,
                 totalLumens: requirements.totalLumens,
                 estimatedPower: requirements.estimatedPower,
-                confidence: this.calculateConfidence(optimized)
+                confidence: this.calculateConfidence(optimized, requirements)
             }
         };
     }
@@ -122,23 +154,22 @@ class LightingAIAssistant {
         const roomStandard = this.standards.roomTypes[this.roomType];
         const fixtureSpec = this.standards.fixtures[this.mainFixtureType];
         
+        // Коэффициент высоты
         let heightCoeff = 1.0;
-        const heightStr = this.height.toFixed(1);
-        if (this.standards.heightCoefficients[heightStr]) {
-            heightCoeff = this.standards.heightCoefficients[heightStr];
-        } else if (this.height > 3.0) {
-            heightCoeff = 1.5;
-        }
+        if (this.height > 3.0) heightCoeff = 1.2;
+        if (this.height > 3.5) heightCoeff = 1.5;
         
-        const safetyFactor = 1.3;
+        const safetyFactor = 1.2; // Уменьшил для более реалистичного количества
         const requiredLux = roomStandard.lux * heightCoeff * safetyFactor;
         const totalLumens = requiredLux * this.area;
         
-        const avgPower = fixtureSpec.powerRange[1];
-        const lumensPerFixture = avgPower * fixtureSpec.lumenPerWatt;
+        const avgPower = fixtureSpec.powerRange[1] || 12;
+        const lumensPerFixture = avgPower * (fixtureSpec.lumenPerWatt || 80);
         
-        let requiredCount = Math.ceil(totalLumens / lumensPerFixture);
-        const maxByArea = Math.ceil(this.area / 1.5);
+        let requiredCount = Math.max(1, Math.ceil(totalLumens / lumensPerFixture));
+        
+        // Ограничения
+        const maxByArea = Math.ceil(this.area / 2); // 1 светильник на 2 м²
         requiredCount = Math.min(requiredCount, maxByArea);
         
         return {
@@ -153,67 +184,66 @@ class LightingAIAssistant {
         };
     }
     
-    generateCandidates(requirements) {
-        const candidates = [];
-        const fixtureSpec = requirements.fixtureSpec;
-        const count = requirements.requiredCount;
-        
-        if (this.mainFixtureType === 'CHANDELIER') {
-            const center = this.findRoomCenter();
-            candidates.push({
-                x: center.x,
-                y: center.y,
-                type: 'main',
-                priority: 10
-            });
-        } else if (this.mainFixtureType === 'TRACK') {
-            candidates.push(...this.generateTrackPositions());
-        } else {
-            candidates.push(...this.generateGridPositions(count, fixtureSpec));
-        }
-        
-        return candidates;
-    }
-    
-    generateGridPositions(count, fixtureSpec) {
+    // УЛУЧШЕННАЯ генерация позиций с учетом формы комнаты
+    generateImprovedGridPositions(requirements) {
         const positions = [];
-        const minDistance = fixtureSpec.minDistance;
-        const wallOffset = fixtureSpec.wallOffset;
+        const count = requirements.requiredCount;
+        const fixtureSpec = requirements.fixtureSpec;
+        const minDistance = fixtureSpec.minDistance || 1000;
+        const wallOffset = fixtureSpec.wallOffset || 600;
         
-        const width = this.bounds.maxX - this.bounds.minX;
-        const height = this.bounds.maxY - this.bounds.minY;
+        // Получаем массив точек комнаты
+        const polygon = this.room.points;
         
-        let cols = Math.ceil(Math.sqrt(count * (width / height)));
-        let rows = Math.ceil(count / cols);
+        // Создаем равномерную сетку с запасом
+        const step = Math.max(minDistance, 800); // шаг сетки
         
-        const colSpacing = width / (cols + 1);
-        const rowSpacing = height / (rows + 1);
+        // Определяем границы с отступом от стен
+        const margin = wallOffset;
+        const startX = this.bounds.minX + margin;
+        const endX = this.bounds.maxX - margin;
+        const startY = this.bounds.minY + margin;
+        const endY = this.bounds.maxY - margin;
         
-        if (colSpacing < minDistance) {
-            cols = Math.floor(width / minDistance) - 1;
-            rows = Math.ceil(count / cols);
+        // Если комната слишком маленькая, уменьшаем отступ
+        if (endX - startX < step) {
+            startX = this.bounds.minX + 200;
+            endX = this.bounds.maxX - 200;
         }
         
-        if (rowSpacing < minDistance) {
-            rows = Math.floor(height / minDistance) - 1;
-            cols = Math.ceil(count / rows);
+        // Генерируем точки сетки
+        for (let x = startX; x <= endX; x += step) {
+            for (let y = startY; y <= endY; y += step) {
+                // Проверяем, что точка внутри полигона
+                if (isPointInPolygon({ x, y }, polygon)) {
+                    // Проверяем расстояние до стен
+                    const distToWall = getDistanceToWalls({ x, y }, polygon);
+                    if (distToWall >= wallOffset - 100) {
+                        positions.push({
+                            x, y,
+                            type: 'main',
+                            priority: 5
+                        });
+                    }
+                }
+            }
         }
         
-        cols = Math.max(1, cols);
-        rows = Math.max(1, rows);
-        
-        let generated = 0;
-        for (let r = 1; r <= rows && generated < count; r++) {
-            for (let c = 1; c <= cols && generated < count; c++) {
-                const x = this.bounds.minX + c * (width / (cols + 1));
-                const y = this.bounds.minY + r * (height / (rows + 1));
+        // Если получилось слишком мало точек, добавляем вокруг центра
+        if (positions.length < count) {
+            const radius = Math.min(this.bounds.width, this.bounds.height) / 3;
+            for (let i = 0; i < count * 2; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const x = this.center.x + Math.cos(angle) * radius;
+                const y = this.center.y + Math.sin(angle) * radius;
                 
-                positions.push({
-                    x, y,
-                    type: 'main',
-                    priority: 5
-                });
-                generated++;
+                if (isPointInPolygon({ x, y }, polygon)) {
+                    positions.push({
+                        x, y,
+                        type: 'main',
+                        priority: 3
+                    });
+                }
             }
         }
         
@@ -223,8 +253,10 @@ class LightingAIAssistant {
     generateTrackPositions() {
         const positions = [];
         
+        // Находим самую длинную непрерывную стену
         let maxLength = 0;
-        let longestEdge = null;
+        let bestEdge = null;
+        let bestAngle = 0;
         
         for (let i = 0; i < this.room.points.length; i++) {
             const p1 = this.room.points[i];
@@ -233,37 +265,40 @@ class LightingAIAssistant {
             
             if (length > maxLength) {
                 maxLength = length;
-                longestEdge = { p1, p2 };
+                bestEdge = { p1, p2 };
+                bestAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
             }
         }
         
-        if (longestEdge) {
-            const angle = Math.atan2(
-                longestEdge.p2.y - longestEdge.p1.y,
-                longestEdge.p2.x - longestEdge.p1.x
-            );
+        if (bestEdge) {
+            // Центр стены
+            const centerX = (bestEdge.p1.x + bestEdge.p2.x) / 2;
+            const centerY = (bestEdge.p1.y + bestEdge.p2.y) / 2;
             
-            const centerX = (longestEdge.p1.x + longestEdge.p2.x) / 2;
-            const centerY = (longestEdge.p1.y + longestEdge.p2.y) / 2;
-            
-            let perpAngle = angle + Math.PI / 2;
+            // Смещаем внутрь комнаты
+            const perpAngle = bestAngle + Math.PI / 2;
             const testX = centerX + Math.cos(perpAngle) * 500;
             const testY = centerY + Math.sin(perpAngle) * 500;
             
+            let finalAngle = perpAngle;
             if (!isPointInPolygon({ x: testX, y: testY }, this.room.points)) {
-                perpAngle = angle - Math.PI / 2;
+                finalAngle = bestAngle - Math.PI / 2;
             }
             
             const offset = 500;
+            const finalX = centerX + Math.cos(finalAngle) * offset;
+            const finalY = centerY + Math.sin(finalAngle) * offset;
             
-            positions.push({
-                x: centerX + Math.cos(perpAngle) * offset,
-                y: centerY + Math.sin(perpAngle) * offset,
-                rotation: angle * 180 / Math.PI,
-                width: maxLength * 0.8,
-                type: 'main',
-                priority: 8
-            });
+            if (isPointInPolygon({ x: finalX, y: finalY }, this.room.points)) {
+                positions.push({
+                    x: finalX,
+                    y: finalY,
+                    rotation: bestAngle * 180 / Math.PI,
+                    width: maxLength * 0.7,
+                    type: 'main',
+                    priority: 8
+                });
+            }
         }
         
         return positions;
@@ -271,18 +306,18 @@ class LightingAIAssistant {
     
     filterValidPositions(candidates) {
         const valid = [];
-        const fixtureSpec = this.standards.fixtures[this.mainFixtureType];
+        const seen = new Set();
         
         for (const pos of candidates) {
+            // Проверка внутри комнаты
             if (!isPointInPolygon({ x: pos.x, y: pos.y }, this.room.points)) {
                 continue;
             }
             
-            const distToWall = getDistanceToWalls({ x: pos.x, y: pos.y }, this.room.points);
-            
-            if (distToWall < fixtureSpec.wallOffset - 200) {
-                continue;
-            }
+            // Избегаем дубликатов
+            const key = `${Math.round(pos.x/10)},${Math.round(pos.y/10)}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
             
             valid.push(pos);
         }
@@ -293,9 +328,10 @@ class LightingAIAssistant {
     optimizePositions(positions, requirements) {
         const optimized = [];
         const fixtureSpec = requirements.fixtureSpec;
-        const minDistance = fixtureSpec.minDistance;
+        const minDistance = fixtureSpec.minDistance || 1000;
         
-        positions.sort((a, b) => b.priority - a.priority);
+        // Сортируем по приоритету
+        positions.sort((a, b) => (b.priority || 0) - (a.priority || 0));
         
         for (const pos of positions) {
             let tooClose = false;
@@ -314,18 +350,30 @@ class LightingAIAssistant {
             
             if (!tooClose) {
                 optimized.push(pos);
+                
+                // Если набрали нужное количество, останавливаемся
+                if (optimized.length >= requirements.requiredCount) {
+                    break;
+                }
             }
         }
         
+        // Если мало точек, добавляем вокруг центра
         if (optimized.length < requirements.requiredCount) {
-            this.addFillPositions(optimized, requirements);
+            const needed = requirements.requiredCount - optimized.length;
+            for (let i = 0; i < needed; i++) {
+                const angle = (i / needed) * Math.PI * 2;
+                const radius = 800;
+                const x = this.center.x + Math.cos(angle) * radius;
+                const y = this.center.y + Math.sin(angle) * radius;
+                
+                if (isPointInPolygon({ x, y }, this.room.points)) {
+                    optimized.push({ x, y, type: 'main', priority: 1 });
+                }
+            }
         }
         
-        return {
-            main: optimized,
-            accent: this.generateAccentPositions(),
-            perimeter: this.generatePerimeterPositions()
-        };
+        return optimized;
     }
     
     generateAccentPositions() {
@@ -334,32 +382,32 @@ class LightingAIAssistant {
         
         if (!roomStandard.accent) return positions;
         
+        // Расставляем акцентный свет по углам
         this.room.points.forEach((point, i) => {
             const prev = this.room.points[(i - 1 + this.room.points.length) % this.room.points.length];
             const next = this.room.points[(i + 1) % this.room.points.length];
             
-            const dir1 = { x: point.x - prev.x, y: point.y - prev.y };
-            const dir2 = { x: next.x - point.x, y: next.y - point.y };
+            // Векторы от точки к соседям
+            const v1 = { x: point.x - prev.x, y: point.y - prev.y };
+            const v2 = { x: next.x - point.x, y: next.y - point.y };
             
-            const len1 = Math.sqrt(dir1.x**2 + dir1.y**2);
-            const len2 = Math.sqrt(dir2.x**2 + dir2.y**2);
+            // Нормализуем
+            const len1 = Math.sqrt(v1.x**2 + v1.y**2);
+            const len2 = Math.sqrt(v2.x**2 + v2.y**2);
             
             if (len1 > 0 && len2 > 0) {
-                const norm1 = { x: dir1.x / len1, y: dir1.y / len1 };
-                const norm2 = { x: dir2.x / len2, y: dir2.y / len2 };
+                // Направление внутрь комнаты (сумма нормализованных векторов)
+                const dirX = (v1.x / len1 + v2.x / len2) * 300;
+                const dirY = (v1.y / len1 + v2.y / len2) * 300;
                 
-                const innerX = (norm1.x + norm2.x) * 400;
-                const innerY = (norm1.y + norm2.y) * 400;
-                
-                const accentX = point.x - innerX;
-                const accentY = point.y - innerY;
+                const accentX = point.x - dirX;
+                const accentY = point.y - dirY;
                 
                 if (isPointInPolygon({ x: accentX, y: accentY }, this.room.points)) {
                     positions.push({
                         x: accentX,
                         y: accentY,
-                        type: 'accent',
-                        subtype: 'GX53'
+                        type: 'accent'
                     });
                 }
             }
@@ -381,60 +429,28 @@ class LightingAIAssistant {
             const centerX = (p1.x + p2.x) / 2;
             const centerY = (p1.y + p2.y) / 2;
             
-            const perpAngle = angle + Math.PI / 2;
-            const offset = 300;
+            // Пробуем смещение в обе стороны от стены
+            const offsets = [300, -300];
             
-            const testX = centerX + Math.cos(perpAngle) * offset;
-            const testY = centerY + Math.sin(perpAngle) * offset;
-            
-            if (isPointInPolygon({ x: testX, y: testY }, this.room.points)) {
-                positions.push({
-                    x: testX,
-                    y: testY,
-                    rotation: angle * 180 / Math.PI,
-                    width: length * 0.6,
-                    type: 'perimeter',
-                    subtype: 'LIGHT_LINE'
-                });
-            } else {
-                const altX = centerX + Math.cos(angle - Math.PI / 2) * offset;
-                const altY = centerY + Math.sin(angle - Math.PI / 2) * offset;
+            for (const offset of offsets) {
+                const perpAngle = angle + Math.PI / 2;
+                const testX = centerX + Math.cos(perpAngle) * offset;
+                const testY = centerY + Math.sin(perpAngle) * offset;
                 
-                if (isPointInPolygon({ x: altX, y: altY }, this.room.points)) {
+                if (isPointInPolygon({ x: testX, y: testY }, this.room.points)) {
                     positions.push({
-                        x: altX,
-                        y: altY,
+                        x: testX,
+                        y: testY,
                         rotation: angle * 180 / Math.PI,
-                        width: length * 0.6,
-                        type: 'perimeter',
-                        subtype: 'LIGHT_LINE'
+                        width: length * 0.7,
+                        type: 'perimeter'
                     });
+                    break; // Нашли подходящую сторону
                 }
             }
         }
         
         return positions;
-    }
-    
-    addFillPositions(positions, requirements) {
-        const center = this.findRoomCenter();
-        const needed = requirements.requiredCount - positions.length;
-        
-        for (let i = 0; i < needed; i++) {
-            const angle = (i / needed) * Math.PI * 2;
-            const radius = 800;
-            
-            const x = center.x + Math.cos(angle) * radius;
-            const y = center.y + Math.sin(angle) * radius;
-            
-            if (isPointInPolygon({ x, y }, this.room.points)) {
-                positions.push({
-                    x, y,
-                    type: 'main',
-                    priority: 1
-                });
-            }
-        }
     }
     
     findRoomCenter() {
@@ -449,20 +465,38 @@ class LightingAIAssistant {
         };
     }
     
-    calculateConfidence(optimized) {
+    calculateConfidence(optimized, requirements) {
         let confidence = 85;
-        const recommended = this.calculateLightingRequirements().requiredCount;
-        const countDiff = Math.abs(optimized.main.length - recommended);
         
-        if (countDiff <= 1) confidence += 10;
-        else if (countDiff <= 2) confidence += 5;
-        else confidence -= 5 * countDiff;
+        // Оценка по количеству
+        const ratio = optimized.length / requirements.requiredCount;
+        if (ratio > 0.8) confidence += 10;
+        else if (ratio < 0.5) confidence -= 15;
         
-        const width = this.bounds.maxX - this.bounds.minX;
-        const height = this.bounds.maxY - this.bounds.minY;
+        // Оценка по покрытию площади
+        const step = 500;
+        let covered = 0;
+        let total = 0;
         
-        if (width / height > 2.5 || height / width > 2.5) {
-            confidence -= 10;
+        for (let x = this.bounds.minX; x <= this.bounds.maxX; x += step) {
+            for (let y = this.bounds.minY; y <= this.bounds.maxY; y += step) {
+                if (isPointInPolygon({ x, y }, this.room.points)) {
+                    total++;
+                    for (const pos of optimized) {
+                        const dist = Math.sqrt((x - pos.x)**2 + (y - pos.y)**2);
+                        if (dist < 1500) {
+                            covered++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (total > 0) {
+            const coverage = (covered / total) * 100;
+            if (coverage > 80) confidence += 10;
+            else if (coverage < 50) confidence -= 10;
         }
         
         return Math.min(100, Math.max(50, confidence));
@@ -482,11 +516,6 @@ function smartLightingOptimization() {
         return;
     }
     
-    if (room.points.length < 3) {
-        alert('❌ Комната должна иметь минимум 3 точки');
-        return;
-    }
-    
     showSmartLightingModal(room);
 }
 
@@ -500,47 +529,34 @@ function showSmartLightingModal(room) {
                 <h3 style="margin-top: 0; color: var(--primary);">🧠 ИИ-ассистент по освещению</h3>
                 
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span>Помещение:</span> <strong>${room.name}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span>Площадь:</span> <strong>${area} м²</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span>Высота потолка:</span> <strong>${height} м</strong>
-                    </div>
+                    <div><strong>${room.name}</strong> | Площадь: ${area} м² | Высота: ${height} м</div>
                 </div>
                 
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">📋 Тип помещения (по СНиП):</label>
-                    <select id="smartRoomType" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="font-weight: bold;">📋 Тип помещения:</label>
+                    <select id="smartRoomType" style="width: 100%; padding: 10px; margin-top: 5px;">
                         ${Object.entries(window.LIGHTING_STANDARDS.roomTypes).map(([key, value]) => 
-                            `<option value="${key}">
-                                ${value.name} — ${value.lux} лк
-                            </option>`
+                            `<option value="${key}">${value.name} (${value.lux} лк)</option>`
                         ).join('')}
                     </select>
                 </div>
                 
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">💡 Тип основного освещения:</label>
-                    <select id="smartMainLightType" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
-                        <option value="GX53">Встраиваемые GX53 (теплый свет)</option>
-                        <option value="LED_PANEL">LED панели (нейтральный свет)</option>
-                        <option value="CHANDELIER">Люстра (центральное освещение)</option>
-                        <option value="TRACK">Трековая система (зонирование)</option>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-weight: bold;">💡 Тип освещения:</label>
+                    <select id="smartMainLightType" style="width: 100%; padding: 10px; margin-top: 5px;">
+                        <option value="GX53">Встраиваемые GX53 (точечные)</option>
+                        <option value="LED_PANEL">LED панели</option>
+                        <option value="CHANDELIER">Люстра</option>
+                        <option value="TRACK">Трековая система</option>
                     </select>
                 </div>
                 
-                <div style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                    <h4 style="margin: 0 0 10px 0;">🔧 Дополнительные настройки</h4>
-                    
-                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="smartAccentLight" checked>
                         <span>Акцентное освещение (по углам)</span>
                     </label>
-                    
-                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <label style="display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="smartPerimeterLight">
                         <span>Подсветка по периметру</span>
                     </label>
@@ -548,7 +564,7 @@ function showSmartLightingModal(room) {
                 
                 <div style="display: flex; gap: 10px;">
                     <button onclick="applySmartLightingOptimization()" style="flex: 2; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px;">
-                        🚀 Запустить ИИ-оптимизацию
+                        🚀 Расставить светильники
                     </button>
                     <button onclick="closeSmartAILightingModal()" style="flex: 1; background: #eee; border: none; padding: 12px;">
                         Отмена
@@ -576,23 +592,29 @@ function applySmartLightingOptimization() {
     const accentLight = document.getElementById('smartAccentLight').checked;
     const perimeterLight = document.getElementById('smartPerimeterLight').checked;
     
+    // Сохраняем выбранный тип глобально
+    selectedMainLightType = mainLightType;
+    
     closeSmartAILightingModal();
     showSmartAILoader();
     
+    // Даем время на анимацию загрузки
     setTimeout(() => {
         try {
             const assistant = new LightingAIAssistant(room, roomType, mainLightType);
             const result = assistant.calculateOptimalLayout();
             
+            // Применяем к комнате
             applySmartLightingToRoom(room, result, accentLight, perimeterLight, mainLightType);
-            showOptimizationReport(result);
+            
             hideSmartAILoader();
+            showOptimizationReport(result);
         } catch (error) {
-            console.error('Ошибка ИИ-оптимизации:', error);
+            console.error('Ошибка:', error);
             alert('Произошла ошибка при оптимизации');
             hideSmartAILoader();
         }
-    }, 1500);
+    }, 1000);
 }
 
 function showSmartAILoader() {
@@ -602,15 +624,10 @@ function showSmartAILoader() {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
         background: white; padding: 30px; border-radius: 20px; z-index: 10000;
         box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center;
-        min-width: 300px;
     `;
     loader.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 15px; animation: pulse 1.5s infinite;">🧠</div>
-        <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">ИИ-ассистент анализирует</div>
-        <div style="color: #666; margin-bottom: 20px;">Применяются нормы СНиП и стандарты освещения...</div>
-        <div style="width: 100%; height: 6px; background: #f0f0f0; border-radius: 3px; overflow: hidden;">
-            <div style="width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); animation: progress 1.5s ease-in-out infinite;"></div>
-        </div>
+        <div style="font-size: 48px; animation: pulse 1.5s infinite;">🧠</div>
+        <div style="font-size: 18px; margin-top: 15px;">ИИ анализирует помещение...</div>
     `;
     document.body.appendChild(loader);
 }
@@ -620,15 +637,18 @@ function hideSmartAILoader() {
     if (loader) loader.remove();
 }
 
+// ИСПРАВЛЕННАЯ функция применения - теперь mainLightType передается правильно
 function applySmartLightingToRoom(room, result, addAccent, addPerimeter, mainLightType) {
     saveState();
     
+    // Очищаем существующие элементы
     if (confirm('Очистить существующие элементы перед добавлением новых?')) {
         room.elements = [];
     }
     
     if (!room.elements) room.elements = [];
     
+    // Добавляем основные светильники
     result.main.forEach(pos => {
         room.elements.push({
             type: mainLightType === 'TRACK' ? 'rail' : 'light',
@@ -640,7 +660,8 @@ function applySmartLightingToRoom(room, result, addAccent, addPerimeter, mainLig
         });
     });
     
-    if (addAccent && result.accent) {
+    // Добавляем акцентное освещение
+    if (addAccent && result.accent && result.accent.length > 0) {
         result.accent.forEach(pos => {
             room.elements.push({
                 type: 'light',
@@ -653,7 +674,8 @@ function applySmartLightingToRoom(room, result, addAccent, addPerimeter, mainLig
         });
     }
     
-    if (addPerimeter && result.perimeter) {
+    // Добавляем периметр
+    if (addPerimeter && result.perimeter && result.perimeter.length > 0) {
         result.perimeter.forEach(pos => {
             room.elements.push({
                 type: 'light',
@@ -673,49 +695,20 @@ function applySmartLightingToRoom(room, result, addAccent, addPerimeter, mainLig
 function showOptimizationReport(result) {
     const reportHtml = `
         <div id="aiReportModal" class="modal" style="display: block; z-index: 5001;">
-            <div class="modal-content" style="width: 450px;">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="font-size: 48px;">📊</div>
-                    <div>
-                        <h3 style="margin: 0; color: var(--dark);">Отчет ИИ-оптимизации</h3>
-                        <p style="margin: 5px 0 0; color: #666;">На основе норм СНиП</p>
-                    </div>
+            <div class="modal-content" style="width: 400px;">
+                <h3 style="margin-top: 0;">📊 Результат оптимизации</h3>
+                
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                    <div>Основных светильников: <b>${result.main.length} шт.</b></div>
+                    <div>Акцентных: <b>${result.accent ? result.accent.length : 0} шт.</b></div>
+                    <div>Периметр: <b>${result.perimeter ? result.perimeter.length : 0} линий</b></div>
+                    <div style="margin-top: 10px;">Освещенность: <b>${Math.round(result.stats.requiredLux)} лк</b></div>
+                    <div>Уверенность ИИ: <b>${result.stats.confidence}%</b></div>
                 </div>
                 
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span>Основных светильников:</span>
-                        <strong>${result.main.length} шт.</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span>Акцентных:</span>
-                        <strong>${result.accent ? result.accent.length : 0} шт.</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span>Периметр:</span>
-                        <strong>${result.perimeter ? result.perimeter.length : 0} линий</strong>
-                    </div>
-                    <div style="border-top: 1px solid #ddd; margin: 10px 0; padding-top: 10px;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Расчетная освещенность:</span>
-                            <strong>${Math.round(result.stats.requiredLux)} лк</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Световой поток:</span>
-                            <strong>${Math.round(result.stats.totalLumens)} лм</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Уверенность ИИ:</span>
-                            <strong>${result.stats.confidence}%</strong>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="closeAIReport()" style="flex: 1; background: var(--primary); color: white; border: none; padding: 12px;">
-                        Готово
-                    </button>
-                </div>
+                <button onclick="closeAIReport()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px;">
+                    Готово
+                </button>
             </div>
         </div>
     `;
@@ -736,15 +729,10 @@ style.textContent = `
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
     }
-    @keyframes progress {
-        0% { width: 0%; }
-        50% { width: 70%; }
-        100% { width: 100%; }
-    }
 `;
 document.head.appendChild(style);
 
-// Экспорт функций
+// Экспорт
 window.smartLightingOptimization = smartLightingOptimization;
 window.applySmartLightingOptimization = applySmartLightingOptimization;
 window.closeSmartAILightingModal = closeSmartAILightingModal;
