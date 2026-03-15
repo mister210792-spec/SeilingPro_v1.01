@@ -1,0 +1,1943 @@
+:root { --primary: #00bcd4; --danger: #ff5252; --dark: #2c3e50; --bg: #f5f7fa; --success: #4caf50; --diag: #8e44ad; --panel-w: 350px; --light: #fbc02d; --gold: #ffd700; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* SaaS Auth Styles */
+    #auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .auth-card { background: white; padding: 40px; border-radius: 15px; width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
+    .auth-card h1 { color: var(--dark); margin-bottom: 25px; font-size: 24px; }
+    .auth-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    .auth-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .auth-switch { font-size: 13px; color: #666; cursor: pointer; text-decoration: underline; }
+
+/* Исправленная шапка для десктопа */
+.header {
+    background: var(--dark);
+    color: white;
+    padding: 8px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    height: 60px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-left h2 {
+    margin: 0;
+    font-size: 18px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.1);
+    padding: 4px 12px;
+    border-radius: 30px;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.plan-status {
+    background: rgba(0,188,212,0.2);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--primary);
+    font-size: 11px;
+}
+
+.user-info button {
+    width: auto;
+    padding: 3px 10px;
+    background: rgba(255,82,82,0.2);
+    border: 1px solid #ff5252;
+    border-radius: 20px;
+    color: white;
+    font-size: 11px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.desktop-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.project-controls {
+    display: flex;
+    gap: 8px;
+    border-right: 1px solid rgba(255,255,255,0.2);
+    padding-right: 15px;
+}
+
+.project-controls .action-btn {
+    height: 36px;
+    padding: 0 15px;
+    border-radius: 8px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    cursor: pointer;
+}
+
+.project-controls .save-btn {
+    background: var(--success);
+    color: white;
+}
+
+.project-controls .projects-btn {
+    background: white;
+    color: var(--dark);
+    border: 2px solid #ddd;
+}
+
+.view-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.view-controls .action-btn {
+    height: 36px;
+    padding: 0 15px;
+    border-radius: 8px;
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.view-controls .export-btn {
+    background: none;
+    border-color: rgba(255,255,255,0.3);
+}
+
+/* Скрываем мобильные кнопки на десктопе */
+@media (min-width: 769px) {
+    .mobile-project-controls {
+        display: none !important;
+    }
+}
+
+/* Мобильные стили */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        height: auto;
+        padding: 8px 12px;
+        gap: 8px;
+    }
+    
+    .header-left {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .header-right {
+        width: 100%;
+    }
+    
+    .desktop-controls {
+        display: none !important;
+    }
+    
+    .mobile-project-controls {
+        display: flex !important;
+        gap: 6px;
+        width: 100%;
+        margin-top: 0;
+    }
+    
+    .mobile-project-btn {
+        flex: 1;
+        height: 36px;
+        border: none;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        cursor: pointer;
+    }
+    
+    .mobile-project-btn .btn-icon {
+        font-size: 14px;
+    }
+    
+    .mobile-project-btn .btn-label {
+        font-size: 10px;
+        text-transform: uppercase;
+    }
+    
+    .mobile-project-btn.save-btn {
+        background: rgba(76, 175, 80, 0.6);
+        color: white;
+    }
+    
+    .mobile-project-btn.projects-btn {
+        background: rgba(255, 255, 255, 0.6);
+        color: var(--dark);
+    }
+    
+    .mobile-project-btn.export-btn {
+        background: rgba(144, 164, 174, 0.6);
+        color: white;
+    }
+}
+
+    /* Pricing Styles */
+    .pricing-container { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
+    .price-card { background: #f8f9fa; border: 2px solid #eee; padding: 20px; border-radius: 12px; width: 200px; transition: 0.3s; position: relative; }
+    .price-card.active { border-color: var(--primary); background: #e0f7fa; }
+    .price-card h4 { margin: 0 0 10px 0; }
+    .price-card .cost { font-size: 20px; font-weight: bold; color: var(--dark); }
+    .price-card ul { padding: 0; list-style: none; font-size: 12px; text-align: left; color: #666; }
+    .price-card li { margin-bottom: 5px; }
+    .badge-pro { background: var(--gold); color: var(--dark); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; vertical-align: middle; }
+
+    .header { background: var(--dark); color: white; padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+    .header h2 { margin: 0; font-size: 18px; letter-spacing: 1px; }
+
+    .user-info { display: flex; align-items: center; gap: 15px; font-size: 13px; }
+    .plan-status { background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--primary); }
+
+    .main-layout { display: flex; flex: 1; overflow: hidden; }
+/* Боковое меню для десктопа */
+.side-menu {
+    width: var(--panel-w);
+    background: white;
+    border-left: 1px solid #d1d9e6;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    overflow-y: auto;
+    box-shadow: -5px 0 15px rgba(0,0,0,0.03);
+    height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
+}
+
+    .drawing-zone { flex: 1; display: flex; flex-direction: column; padding: 10px; position: relative; }
+    #tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+    .tab { position: relative; padding: 8px 30px 8px 15px; cursor: pointer; background: #d1d9e6; border-radius: 6px 6px 0 0; border: none; font-size: 12px; white-space: nowrap; transition: 0.2s; }
+    .tab.active { background: white; font-weight: bold; color: var(--primary); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+    .tab .close-tab { position: absolute; right: 6px; top: 8px; width: 16px; height: 16px; line-height: 14px; text-align: center; border-radius: 50%; color: #999; transition: 0.2s; }
+    .tab .close-tab:hover { background: var(--danger); color: white; }
+
+    #canvas-container { flex: 1; background: white; border-radius: 0 8px 8px 8px; border: 1px solid #d1d9e6; position: relative; overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.02); }
+    svg { width: 100%; height: 100%; cursor: crosshair; display: block; touch-action: none; }
+
+    
+    
+    .menu-section { margin-bottom: 15px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 10px; }
+    .menu-section h3 { margin: -12px -12px 12px -12px; padding: 8px 12px; background: #f8f9fa; border-radius: 10px 10px 0 0; font-size: 13px; color: var(--dark); border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 8px; }
+
+    .btn-group { display: flex; flex-direction: column; gap: 8px; }
+    button, select { padding: 10px; cursor: pointer; border: 1px solid #dee2e6; border-radius: 6px; background: #fff; font-size: 13px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; }
+    button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: #f0fdff; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; background: #f5f5f5; }
+    button.active { background: var(--primary) !important; color: white !important; border-color: var(--primary) !important; font-weight: bold; }
+
+    .btn-toggle-active { background: #ede7f6; color: var(--diag); border-color: var(--diag); font-weight: bold; }
+
+    .stat-card { background: var(--dark); color: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .total-card { background: #27ae60; color: white; padding: 15px; border-radius: 12px; margin-top: 10px; border: 2px solid #2ecc71; }
+    
+    #roomTitle { cursor: pointer; text-decoration: underline dotted; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold; color: var(--primary); }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; }
+    .stat-val { color: var(--primary); font-weight: bold; }
+    .total-val { color: #fff; font-weight: bold; font-size: 1.1em; }
+
+    .estimate-list { font-size: 13px; color: #333; max-height: 200px; overflow-y: auto; }
+    .estimate-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; align-items: center; }
+    .estimate-qty { font-weight: bold; color: var(--primary); background: #e0f7fa; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+
+    .length-label { fill: #007aff; font-size: 12px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-anchor: middle; cursor: pointer; }
+    .diag-label { fill: var(--diag); font-size: 10px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; }
+    .measure-label { fill: var(--danger); font-size: 10px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; }
+    .live-label { fill: var(--danger); font-size: 14px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 3px; text-anchor: middle; pointer-events: none; }
+    .rail-label { fill: #fb8c00; font-size: 11px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; cursor: pointer; }
+    .light-label { fill: var(--light); font-size: 11px; font-weight: bold; paint-order: stroke; stroke: #fff; stroke-width: 2px; text-anchor: middle; cursor: pointer; }
+
+    #print-container { display: none; }
+
+    .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: white; margin: 2% auto; padding: 20px; border-radius: 12px; width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 30px rgba(0,0,0,0.3); }
+    /* Мобильная версия модального окна прайс-листа */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 90% !important;
+        max-width: 400px;
+        margin: 5% auto 15% auto !important; /* увеличен отступ снизу */
+        padding: 15px;
+        max-height: 70vh; /* уменьшаем максимальную высоту */
+    }
+    
+    /* Специально для окна прайс-листа */
+    #priceModal .modal-content {
+        margin-bottom: 120px !important; /* большой отступ снизу, чтобы не перекрывать кнопки */
+    }
+    
+    /* Уменьшаем размер таблицы в прайс-листе */
+    #priceModal .price-table {
+        font-size: 12px;
+    }
+    
+    #priceModal .price-table input {
+        width: 50px;
+        font-size: 12px;
+        padding: 4px;
+    }
+    
+    #priceModal .price-table td {
+        padding: 6px 3px;
+    }
+    
+    /* Уменьшаем кнопки в модальном окне */
+    #priceModal button {
+        padding: 8px;
+        font-size: 12px;
+    }
+    
+    /* Делаем форму создания элемента компактнее */
+    #addForm .form-row {
+        gap: 5px;
+        margin-bottom: 8px;
+    }
+    
+    #addForm input, #addForm select {
+        padding: 6px;
+        font-size: 12px;
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    #priceModal .modal-content {
+        width: 95% !important;
+        margin: 3% auto 130px auto !important;
+        padding: 12px;
+        max-height: 65vh;
+    }
+    
+    #priceModal .price-table input {
+        width: 45px;
+    }
+    
+    #priceModal .btn-del {
+        font-size: 14px;
+    }
+}
+    .price-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    .price-table th { text-align: left; font-size: 12px; color: #777; border-bottom: 1px solid #eee; padding: 5px; }
+    .price-table td { padding: 8px 5px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    .price-table input { width: 70px; padding: 5px; text-align: right; border: 1px solid #ddd; border-radius: 4px; }
+    .btn-del { color: var(--danger); cursor: pointer; font-weight: bold; background: none; border: none; font-size: 16px; }
+    .btn-del:hover { background: #ffebee; border-radius: 4px; }
+
+    .add-form { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 15px; display: none; }
+    .add-form.visible { display: block; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .form-row input, .form-row select { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+
+    .lock-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; text-align: center; }
+    .lock-overlay.active { display: flex; }
+
+    @media print {
+        body * { visibility: hidden; }
+        #print-container { display: block !important; visibility: visible; position: absolute; left: 0; top: 0; width: 100%; background: white; }
+        .print-page { page-break-after: always; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; min-height: 100vh; color: black; }
+        .print-header { border-bottom: 2px solid #2c3e50; margin-bottom: 20px; padding-bottom: 10px; }
+        .print-canvas { width: 100%; height: 400px; border: 1px solid #eee; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; }
+        .print-canvas svg { max-width: 100%; max-height: 100%; }
+        .print-estimate { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .print-estimate th, .print-estimate td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        .print-estimate th { background-color: #f2f2f2; }
+        .total-page { page-break-after: avoid; }
+    }
+
+/* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
+@media (max-width: 768px) {
+    :root {
+        --panel-w: 100%; /* Панель занимает всю ширину */
+    }
+
+    body {
+        overflow: auto; /* Разрешаем прокрутку на мобильных */
+    }
+
+    /* Шапка: переносим кнопки на новую строку */
+    .header {
+        flex-direction: column;
+        height: auto;
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .header h2 {
+        font-size: 16px;
+    }
+
+    .user-info {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Главная разметка: стек вместо строки */
+    .main-layout {
+        flex-direction: column;
+        overflow: visible;
+    }
+
+    /* Холст: фиксированная высота для удобства рисования */
+    .drawing-zone {
+        height: 60vh; 
+        min-height: 400px;
+        padding: 5px;
+    }
+
+    
+
+    /* Увеличиваем кнопки для удобства нажатия пальцем */
+    button, select {
+        padding: 14px;
+        font-size: 14px;
+    }
+
+    /* Сетка тарифов при регистрации */
+    .pricing-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .price-card {
+        width: 90%;
+    }
+
+    /* Модальное окно цен */
+    #priceModal .modal-content {
+        width: 95%;
+        margin: 5% auto;
+        padding: 15px;
+    }
+    
+    .price-table input {
+        width: 60px; /* Сужаем инпуты в таблице */
+    }
+
+}
+/* Стили для списка сохраненных проектов */
+.project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.project-item:hover {
+    border-color: var(--primary);
+    background: #f8fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.project-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.project-name {
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 15px;
+}
+
+.project-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.project-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-load {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-delete {
+    background: #fff1f1;
+    color: var(--danger);
+    border: 1px solid #ffebeb;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-delete:hover {
+    background: var(--danger);
+    color: white;
+}
+
+/* Кастомный скроллбар для списка */
+#projectsListContainer::-webkit-scrollbar { width: 6px; }
+#projectsListContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+/* Кнопки зума для мобильной версии */
+.zoom-controls-mobile {
+    display: none; /* По умолчанию скрыты на десктопе */
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.1);
+    padding: 5px 10px;
+    border-radius: 30px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.zoom-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: white;
+    color: var(--dark);
+    border: none;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.zoom-btn:active {
+    transform: scale(0.95);
+    background: var(--primary);
+    color: white;
+}
+
+.zoom-level {
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 40px;
+    text-align: center;
+}
+
+.zoom-btn-reset {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* Показываем на мобильных */
+@media (max-width: 768px) {
+    .zoom-controls-mobile {
+        display: flex;
+        margin-left: auto;
+    }
+    
+    /* Скрываем старые кнопки на мобильных, если нужно */
+    .header > div:last-child {
+        display: none;
+    }
+}
+/* Контейнер для вкладок и кнопок зума */
+#tabs-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 0;
+}
+
+#tabs {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    min-width: 0; /* Позволяет сжиматься */
+}
+
+/* Стили для вкладок */
+.tab {
+    position: relative;
+    padding: 6px 25px 6px 12px; /* Уменьшенные отступы */
+    cursor: pointer;
+    background: #d1d9e6;
+    border-radius: 6px 6px 0 0;
+    border: none;
+    font-size: 11px; /* Чуть меньше шрифт */
+    white-space: nowrap;
+    transition: 0.2s;
+}
+
+/* Кнопки зума в строке с вкладками - УМЕНЬШЕННЫЙ РАЗМЕР */
+#tabs-container .zoom-controls-mobile {
+    display: none; /* По умолчанию скрыты */
+    margin-left: auto;
+    flex-shrink: 0; /* Запрещаем сжиматься */
+    background: white;
+    border: 1px solid #d1d9e6;
+    border-radius: 25px; /* Скругленные края */
+    padding: 2px; /* Внутренний отступ */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    gap: 2px; /* Уменьшенный промежуток */
+}
+
+/* Уменьшенные кнопки зума */
+#tabs-container .zoom-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 50%;
+    background: white;
+    color: #2c3e50;
+    border: 1px solid #e0e0e0;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#tabs-container .zoom-btn:active {
+    transform: scale(0.95);
+    background: #00bcd4;
+    color: white;
+    border-color: #00bcd4;
+}
+
+/* Уровень зума */
+#tabs-container .zoom-level {
+    color: #2c3e50;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 35px;
+    text-align: center;
+    background: #f5f5f5;
+    padding: 3px 0;
+    border-radius: 12px;
+    margin: 0 2px;
+}
+
+/* Кнопка сброса зума - ВИДИМАЯ ВСЕГДА */
+#tabs-container .zoom-btn-reset {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    color: #2c3e50;
+    border: 1px solid #d0d0d0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 1; /* Полностью видимая */
+}
+
+#tabs-container .zoom-btn-reset:hover,
+#tabs-container .zoom-btn-reset:active {
+    background: #ffd700;
+    color: #2c3e50;
+    border-color: #e0b800;
+    transform: scale(0.95);
+}
+
+/* Показываем на мобильных */
+@media (max-width: 768px) {
+    #tabs-container .zoom-controls-mobile {
+        display: flex;
+    }
+    
+    /* Скрываем старые кнопки зума в шапке */
+    .header .zoom-controls-mobile {
+        display: none;
+    }
+    
+    /* Увеличиваем область касания для кнопок (но сохраняем размер) */
+    #tabs-container .zoom-btn,
+    #taps-container .zoom-btn-reset {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+    }
+    
+    #tabs-container .zoom-level {
+        font-size: 11px;
+        min-width: 38px;
+    }
+}
+/* --- МОБИЛЬНАЯ АДАПТАЦИЯ ШАПКИ --- */
+@media (max-width: 768px) {
+    /* Полностью переработанная шапка для мобильных */
+    .header {
+        flex-direction: row;
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        gap: 6px;
+        background: linear-gradient(135deg, #1a2634 0%, #2c3e50 100%);
+        border-bottom: 2px solid #00bcd4;
+    }
+
+    /* Логотип */
+    .header h2 {
+        font-size: 16px;
+        margin: 0;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: 0.5px;
+    }
+
+    .header h2 span {
+        color: #00bcd4 !important;
+        font-weight: 600;
+    }
+
+    /* Блок с информацией о пользователе */
+    .user-info {
+        width: auto;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 30px;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* Статус плана */
+    .plan-status {
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 20px;
+        background: rgba(0, 188, 212, 0.2);
+        border: 1px solid #00bcd4;
+        color: white;
+    }
+
+    /* Имя пользователя */
+    #header-user {
+        font-size: 12px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+        padding: 0 2px;
+    }
+
+    /* Кнопка выхода */
+    .user-info button {
+        width: auto;
+        padding: 4px 10px;
+        background: rgba(255, 82, 82, 0.2);
+        border: 1px solid #ff5252;
+        color: white;
+        font-size: 11px;
+        font-weight: 500;
+        border-radius: 20px;
+        margin: 0;
+        height: auto;
+        line-height: 1;
+    }
+
+    .user-info button:active {
+        background: #ff5252;
+        transform: scale(0.95);
+    }
+
+    /* Контейнер кнопок управления проектами */
+    .project-controls {
+        display: flex !important; /* Показываем на мобильных */
+        gap: 6px;
+        margin-left: 0 !important;
+        border-left: none !important;
+        padding-left: 0 !important;
+        width: 100%;
+        justify-content: flex-start;
+        order: 3; /* Перемещаем вниз */
+        margin-top: 4px;
+    }
+
+    /* Кнопки проектов */
+    .project-controls .action-btn {
+        height: 36px;
+        padding: 0 12px !important;
+        font-size: 12px;
+        border-radius: 20px !important;
+        flex: 1;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .project-controls .action-btn:first-child {
+        background: #4caf50 !important;
+        border: none;
+    }
+
+    .project-controls .action-btn:last-child {
+        background: white !important;
+        color: #2c3e50 !important;
+        border: none;
+    }
+
+    .project-controls .action-btn:active {
+        transform: translateY(1px);
+        box-shadow: none;
+    }
+
+    /* Скрываем старые кнопки (PNG, PDF, Отменить) */
+    .header > div:last-child {
+        display: none;
+    }
+
+    /* Компактная строка с вкладками */
+    #tabs-container {
+        padding: 4px 8px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    /* Вкладки помещений */
+    .tab {
+        padding: 6px 22px 6px 10px;
+        font-size: 11px;
+        background: #f0f2f5;
+        color: #2c3e50;
+        border-radius: 20px 20px 0 0;
+    }
+
+    .tab.active {
+        background: #00bcd4;
+        color: white;
+    }
+
+    .tab .close-tab {
+        right: 4px;
+        top: 6px;
+        width: 14px;
+        height: 14px;
+        font-size: 12px;
+        line-height: 12px;
+        color: #999;
+    }
+
+    .tab.active .close-tab {
+        color: rgba(255,255,255,0.8);
+    }
+
+    .tab.active .close-tab:active {
+        background: #ff5252;
+        color: white;
+    }
+
+    /* Кнопки зума (уже стилизованы ранее) */
+    #tabs-container .zoom-controls-mobile {
+        background: #f5f7fa;
+        border: 1px solid #d0d7de;
+    }
+
+    #tabs-container .zoom-btn {
+        background: white;
+        border: 1px solid #d0d7de;
+        color: #2c3e50;
+        width: 30px;
+        height: 30px;
+        font-size: 16px;
+    }
+
+    #tabs-container .zoom-level {
+        background: #e9ecef;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    #tabs-container .zoom-btn-reset {
+        background: #e9ecef;
+        border: 1px solid #d0d7de;
+        color: #2c3e50;
+        width: 30px;
+        height: 30px;
+    }
+
+    #tabs-container .zoom-btn-reset:active {
+        background: #ffd700;
+        border-color: #e0b800;
+    }
+}
+
+/* Мобильная панель инструментов */
+.mobile-toolbar {
+    display: none;
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    padding: 6px;
+    z-index: 100;
+    gap: 4px;
+    border: 1px solid #e0e0e0;
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.95);
+}
+
+.mobile-tool-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 24px;
+    background: transparent;
+    border: none;
+    min-width: 70px;
+    transition: all 0.2s;
+}
+
+.mobile-tool-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+.mobile-tool-btn .tool-icon {
+    font-size: 22px;
+    margin-bottom: 2px;
+}
+
+.mobile-tool-btn .tool-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .mobile-toolbar {
+        display: flex;
+    }
+}
+
+/* Контекстные меню */
+.context-menu {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.context-menu-content {
+    background: white;
+    border-radius: 20px;
+    width: 300px;
+    max-width: 90%;
+    padding: 15px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.context-menu-item {
+    padding: 16px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.context-menu-item:last-child {
+    border-bottom: none;
+}
+
+.context-menu-item:active {
+    background: #f5f5f5;
+}
+
+.context-menu-divider {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 8px 0;
+}
+
+/* Модальное окно изменения размера */
+#resizeModal .modal-content {
+    width: 320px;
+    border-radius: 24px;
+    padding: 24px;
+}
+
+#resizeSlider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: #e0e0e0;
+    outline: none;
+}
+
+#resizeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,188,212,0.4);
+    border: 2px solid white;
+}
+
+#resizeInput {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Улучшенная подсветка выделенных точек */
+circle[stroke="#e74c3c"] {
+    transition: r 0.2s, fill 0.2s;
+}
+
+circle[stroke="#e74c3c"][r="8"] {
+    filter: drop-shadow(0 0 5px var(--primary));
+}
+
+/* Индикатор режима */
+.mode-indicator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--dark);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 50;
+    border: 1px solid var(--primary);
+}
+/* Холст на весь экран для мобильных */
+@media (max-width: 768px) {
+    .drawing-zone {
+        height: calc(100vh - 120px) !important;
+        min-height: auto !important;
+        padding: 0 !important;
+    }
+    
+    #canvas-container {
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+    }
+    
+    .side-menu {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    #tabs-container {
+        padding: 8px !important;
+    }
+}
+/* --- ПОЛНОСТЬЮ ПЕРЕРАБОТАННАЯ МОБИЛЬНАЯ ВЕРСИЯ - ХОЛСТ ВО ВЕСЬ ЭКРАН --- */
+@media (max-width: 768px) {
+    /* Сбрасываем все ограничения */
+    body, html {
+        overflow: hidden;
+        height: 100%;
+        width: 100%;
+        position: fixed;
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Шапка - минимальная */
+    .header {
+        padding: 4px 8px;
+        height: 30px;
+        flex-direction: row;
+        align-items: center;
+        background: linear-gradient(135deg, #1a2634 0%, #2c3e50 100%);
+        border-bottom: 2px solid #00bcd4;
+        position: relative;
+        z-index: 10;
+    }
+    
+    .header h2 {
+        font-size: 14px;
+        margin: 0;
+        white-space: nowrap;
+    }
+    
+    .user-info {
+        padding: 2px 6px;
+        gap: 4px;
+    }
+    
+    .plan-status {
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+    
+    #header-user {
+        font-size: 10px;
+    }
+    
+    .user-info button {
+        padding: 2px 6px;
+        font-size: 9px;
+    }
+    
+    /* Прячем лишние кнопки */
+    .project-controls {
+        display: none !important;
+    }
+    
+    .header > div:last-child {
+        display: none;
+    }
+    
+    /* Главный контейнер - весь экран */
+    .main-layout {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 44px);
+        width: 100vw;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    /* Зона рисования - занимает всё доступное пространство */
+    .drawing-zone {
+        flex: 1 1 auto;
+        height: auto !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        position: relative;
+    }
+    
+    /* Контейнер с вкладками */
+    #tabs-container {
+        padding: 4px 8px !important;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+        height: 36px;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 5;
+    }
+    
+    /* Контейнер SVG - занимает всё оставшееся место */
+    #canvas-container {
+        flex: 1 1 auto;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        border-radius: 0 !important;
+        border: none !important;
+        position: relative;
+        z-index: 1;
+    }
+    
+    svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    
+    /* Боковое меню - ИСПРАВЛЕНО */
+    .side-menu {
+        position: fixed;
+        bottom: -100vh;
+        left: 0;
+        width: 100%; /* Было 100vw, меняем на 100% */
+        height: 90vh;
+        background: white;
+        border-top: 3px solid var(--primary);
+        border-radius: 25px 25px 0 0;
+        padding: 20px 15px 40px 15px;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.25);
+        z-index: 2000;
+        transition: bottom 0.3s ease-out;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        pointer-events: auto;
+        box-sizing: border-box; /* Добавляем эту строку */
+    }
+
+.side-menu.visible {
+    bottom: 0;              /* полностью видимо */
+}
+/* Улучшаем прокрутку */
+.side-menu {
+    scrollbar-width: thin;           /* тонкий скроллбар для Firefox */
+    scrollbar-color: var(--primary) #f0f0f0; /* цвет скроллбара */
+}
+
+.side-menu::-webkit-scrollbar {
+    width: 6px;                      /* ширина скроллбара */
+}
+
+.side-menu::-webkit-scrollbar-track {
+    background: #f0f0f0;              /* цвет дорожки */
+    border-radius: 10px;
+}
+
+.side-menu::-webkit-scrollbar-thumb {
+    background: var(--primary);       /* цвет ползунка */
+    border-radius: 10px;
+}
+
+.side-menu::-webkit-scrollbar-thumb:hover {
+    background: #008c9e;              /* цвет при наведении */
+}
+    
+    .side-menu.visible {
+        bottom: 0;
+    }
+    
+    /* Затемнение фона при открытом меню */
+    .menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.5);
+        z-index: 1999;
+        display: none;
+        backdrop-filter: blur(3px);
+    }
+    
+    .menu-overlay.visible {
+        display: block;
+    }
+    
+    /* Ручка для закрытия меню */
+    .menu-handle {
+        position: sticky;
+        top: 0;
+        width: 60px;
+        height: 5px;
+        background: #ccc;
+        border-radius: 10px;
+        margin: 0 auto 15px auto;
+        cursor: pointer;
+        z-index: 2001;
+    }
+    
+    /* Кнопка МЕНЮ внизу слева - теперь поверх всего */
+    .menu-button {
+        position: fixed;
+        bottom: 20px;
+        left: -35px;
+        z-index: 1001;
+        background: var(--dark);
+        color: white;
+        border: none;
+        border-radius: 30px;
+        padding: 12px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--primary);
+        pointer-events: auto;
+    }
+    
+    .menu-button:active {
+        transform: scale(0.95);
+        background: var(--primary);
+    }
+    
+    /* Мобильная панель инструментов */
+    .mobile-toolbar {
+        display: flex;
+        position: fixed;
+        bottom: 20px;
+        left: 60%;
+        transform: translateX(-50%);
+        z-index: 1001;
+        background: rgba(255,255,255,0.95);
+        border-radius: 30px;
+        padding: 4px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0,0,0,0.1);
+        pointer-events: auto;
+    }
+    
+    .mobile-tool-btn {
+        padding: 8px 16px;
+        min-width: 60px;
+    }
+    
+    .mobile-tool-btn .tool-icon {
+        font-size: 20px;
+    }
+    
+    .mobile-tool-btn .tool-label {
+        font-size: 10px;
+    }
+    
+    /* Контекстные меню - поверх всего */
+    .context-menu {
+        z-index: 3000;
+    }
+    
+    .context-menu-content {
+        width: 85%;
+        max-width: 320px;
+        position: relative;
+        z-index: 3001;
+    }
+    
+    /* Модальное окно изменения размера */
+    #resizeModal {
+        z-index: 3000;
+    }
+    
+    #resizeModal .modal-content {
+        width: 90%;
+        max-width: 350px;
+        margin: 20% auto;
+        position: relative;
+        z-index: 3001;
+    }
+}
+/* Скрываем мобильные элементы на экране авторизации */
+#auth-overlay[style*="display: flex"] ~ .menu-button,
+#auth-overlay[style*="display: flex"] ~ .mobile-toolbar,
+#auth-overlay[style*="display: flex"] ~ .menu-overlay {
+    display: none !important;
+}
+
+/* Убеждаемся, что мобильные элементы не видны поверх авторизации */
+#auth-overlay {
+    z-index: 10000 !important;
+}
+/* Кнопка добавления полотна */
+.tab-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.add-room-btn {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--success);
+    color: white;
+    border: none;
+    font-size: 24px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+    transition: all 0.2s;
+    padding: 0;
+    line-height: 1;
+}
+
+.add-room-btn:active {
+    transform: scale(0.9);
+    background: #388e3c;
+}
+
+@media (max-width: 768px) {
+    .add-room-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 28px;
+    }
+}
+/* Мобильные кнопки управления проектами - ТОЛЬКО ДЛЯ МОБИЛЬНЫХ */
+@media (max-width: 768px) {
+    .desktop-controls {
+        display: none !important;
+    }
+    
+    .mobile-project-controls {
+        display: flex !important;
+        gap: 6px;
+        width: 100%;
+        margin-top: -4px;
+    }
+    
+    .mobile-project-btn {
+        flex: 1;
+        height: 30px;
+        border: none;
+        border-radius: 10px;
+        font-size: 9px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .mobile-project-btn .btn-icon {
+        font-size: 18px;
+    }
+    
+    .mobile-project-btn .btn-label {
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+    
+    .mobile-project-btn.save-btn {
+    background: rgba(144, 164, 174, 0.6); /* зеленый с прозрачностью 0.8 */
+    color: white;
+}
+
+.mobile-project-btn.projects-btn {
+    background: rgba(144, 164, 174, 0.6); /* белый с прозрачностью 0.8 */
+    color: white;
+}
+
+.mobile-project-btn.export-btn {
+    background: rgba(144, 164, 174, 0.6); /* серый с прозрачностью 0.8 */
+    color: white;
+}
+    
+    .mobile-project-btn:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+    }
+}
+
+/* Для десктопа - скрываем мобильные кнопки */
+@media (min-width: 769px) {
+    .mobile-project-controls {
+        display: none !important;
+    }
+}
+
+/* Обновляем стили шапки для мобильных */
+@media (max-width: 768px) {
+    .header {
+        padding: 8px 12px;
+        background: linear-gradient(135deg, #1a2634 0%, #2c3e50 100%);
+        border-bottom: 2px solid #00bcd4;
+    }
+    
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+    
+    .header h2 {
+        font-size: 16px;
+        margin: 0;
+        white-space: nowrap;
+    }
+    
+    .user-info {
+        padding: 2px 6px;
+        gap: 4px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 30px;
+        border: 1px solid rgba(255,255,255,0.15);
+    }
+    
+    .plan-status {
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+    
+    #header-user {
+        font-size: 10px;
+    }
+    
+    .user-info .logout-btn {
+        padding: 2px 6px;
+        font-size: 9px;
+        background: rgba(255,82,82,0.2);
+        border: 1px solid #ff5252;
+        border-radius: 20px;
+        color: white;
+    }
+}
+
+/* Удаляем дублирующиеся стили для кнопки выхода */
+.user-info button {
+    width: auto;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+/* Кнопка отмены для мобильной версии */
+.mobile-undo-btn {
+    position: absolute;
+    top: 50px;
+    right: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    padding: 0;
+    transition: transform 0.2s;
+}
+
+.mobile-undo-btn svg {
+    width: 28px;
+    height: 28px;
+}
+
+.mobile-undo-btn:active {
+    transform: scale(0.9);
+}
+
+/* Показываем только на мобильных */
+@media (min-width: 769px) {
+    .mobile-undo-btn {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .mobile-undo-btn {
+        display: flex;
+    }
+}
+
+/* Корректируем положение на очень маленьких экранах */
+@media (max-width: 480px) {
+    .mobile-undo-btn {
+        top: 45px;
+        right: 5px;
+        width: 40px;
+        height: 40px;
+    }
+    
+    .mobile-undo-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+
+}
+/* Убеждаемся, что панель инструментов не перекрывает модальное окно */
+@media (max-width: 768px) {
+    .modal {
+        z-index: 2000;
+    }
+    
+    .mobile-toolbar {
+        z-index: 1001; /* ниже, чем у модального окна */
+    }
+    
+    .menu-button {
+        z-index: 1001; /* ниже, чем у модального окна */
+    }
+}
+/* Кнопка Telegram в шапке */
+.telegram-btn {
+    background: #0088cc !important;
+    color: white !important;
+    border: none !important;
+    padding: 5px 12px !important;
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    transition: all 0.3s !important;
+    width: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+.telegram-btn:hover {
+    background: #006699 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,136,204,0.3);
+}
+
+/* Для мобильных */
+@media (max-width: 768px) {
+    .telegram-btn {
+        padding: 3px 8px !important;
+        font-size: 10px !important;
+    }
+}
+/* Стили для окна оплаты */
+.auth-card h1 {
+    color: var(--dark);
+}
+
+.auth-card p {
+    margin: 20px 0;
+    line-height: 1.5;
+}
+
+.auth-card button {
+    margin: 5px 0;
+}
+/* Админ-панель */
+#admin-section {
+    border: 2px solid gold;
+    background: linear-gradient(135deg, #fff9e6, #fff);
+}
+
+#admin-section h3 {
+    background: gold !important;
+    color: var(--dark) !important;
+    font-weight: bold;
+}
+
+#admin-user-info {
+    border-left: 3px solid gold;
+    background: #fafafa;
+}
+
+#admin-user-details div {
+    padding: 3px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+#admin-user-details div:last-child {
+    border-bottom: none;
+}
+
+/* Для мобильных */
+@media (max-width: 768px) {
+    #admin-section input,
+    #admin-section select,
+    #admin-section button {
+        font-size: 14px;
+        padding: 12px;
+    }
+}
+/* Кнопка закрытия в админ-панели */
+#admin-user-info {
+    position: relative;
+    padding-right: 30px !important;
+}
+
+#admin-user-info > div:first-child {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #666;
+    transition: all 0.2s;
+}
+
+#admin-user-info > div:first-child:hover {
+    background: #ff5252;
+    color: white;
+}
+/* ========== УЛУЧШЕННЫЕ СТИЛИ ДЛЯ АДМИН-ПАНЕЛИ ========== */
+
+#admin-section {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px !important;
+    margin: 20px 0 30px 0;
+    border: 2px solid gold;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #fff9e6, #fff);
+}
+
+#admin-section h3 {
+    margin: -15px -15px 15px -15px !important;
+    padding: 12px 15px !important;
+    background: gold !important;
+    color: var(--dark) !important;
+    font-size: 16px;
+    border-radius: 10px 10px 0 0;
+}
+
+/* Контейнер для всех элементов */
+#admin-section > div:first-of-type {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Поле ввода email */
+#admin-user-email {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 12px !important;
+    margin-bottom: 10px !important;
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    transition: border 0.2s;
+}
+
+#admin-user-email:focus {
+    border-color: gold !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2);
+}
+
+/* Выбор тарифа */
+#admin-plan-select {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 12px !important;
+    margin-bottom: 10px !important;
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    background-color: white;
+    cursor: pointer;
+}
+
+/* Контейнер для кнопок */
+#admin-section .btn-group,
+#admin-section div[style*="display: flex"] {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin: 5px 0 10px 0 !important;
+}
+
+/* Кнопки */
+#admin-section button {
+    flex: 1 !important;
+    min-width: 0 !important; /* Предотвращает переполнение */
+    padding: 10px 8px !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Кнопка обновления */
+#admin-section button[onclick="adminUpdateUserPlan()"] {
+    background: gold !important;
+    color: var(--dark) !important;
+}
+
+#admin-section button[onclick="adminUpdateUserPlan()"]:hover {
+    background: #e6c200 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+}
+
+/* Кнопка поиска */
+#admin-section button[onclick="adminFindUser()"] {
+    background: #90a4ae !important;
+    color: white !important;
+}
+
+#admin-section button[onclick="adminFindUser()"]:hover {
+    background: #78909c !important;
+    transform: translateY(-2px);
+}
+
+/* Кнопка "Сделать меня PRO" */
+#admin-section > div:last-child button {
+    width: 100% !important;
+    background: #9c27b0 !important;
+    color: white !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    margin-top: 10px !important;
+    border-radius: 8px !important;
+}
+
+#admin-section > div:last-child button:hover {
+    background: #7b1fa2 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+}
+
+/* Информация о пользователе */
+#admin-user-info {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-top: 15px !important;
+    padding: 12px 12px 12px 12px !important;
+    background: #f8f9fa !important;
+    border-left: 4px solid gold !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    position: relative !important;
+}
+
+/* Детали пользователя */
+#admin-user-details {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#admin-user-details div {
+    padding: 4px 0;
+    border-bottom: 1px dashed #e0e0e0;
+    word-break: break-word;
+}
+
+#admin-user-details div:last-child {
+    border-bottom: none;
+}
+
+/* Кнопка закрытия */
+#admin-user-info > div:first-child {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important;
+    background: #e0e0e0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    color: #666 !important;
+    transition: all 0.2s !important;
+}
+
+#admin-user-info > div:first-child:hover {
+    background: #ff5252 !important;
+    color: white !important;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    #admin-section {
+        padding: 12px !important;
+    }
+    
+    #admin-section h3 {
+        margin: -12px -12px 12px -12px !important;
+        padding: 10px 12px !important;
+        font-size: 15px;
+    }
+    
+    #admin-user-email,
+    #admin-plan-select {
+        padding: 12px !important;
+        font-size: 16px !important;
+    }
+    
+    #admin-section button {
+        padding: 12px 8px !important;
+        font-size: 14px !important;
+    }
+    
+    #admin-user-info {
+        padding: 10px !important;
+    }
+}
+/* Индикатор автосохранения */
+#saveIndicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: opacity 0.3s;
+    pointer-events: none;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Для мобильных */
+@media (max-width: 768px) {
+    #saveIndicator {
+        bottom: 80px; /* Выше, чтобы не перекрывать панель инструментов */
+        right: 10px;
+        font-size: 11px;
+        padding: 6px 12px;
+    }
+}
