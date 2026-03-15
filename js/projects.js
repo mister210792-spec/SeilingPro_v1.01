@@ -84,7 +84,6 @@ function closeClientInfoModal() {
     if (modal) modal.remove();
 }
 
-// Сохранение проекта с данными клиента
 function saveProjectWithClientInfo() {
     const projectName = document.getElementById('projectNameInput').value.trim();
     if (!projectName) {
@@ -99,13 +98,11 @@ function saveProjectWithClientInfo() {
     
     closeClientInfoModal();
     
-    // Показываем индикатор сохранения
     showSaveLoader();
     
     // Подготавливаем данные проекта
     const projectData = JSON.parse(JSON.stringify(rooms));
     
-    // Добавляем метаданные проекта
     const project = {
         name: projectName,
         client: {
@@ -129,12 +126,36 @@ function saveProjectWithClientInfo() {
     db.collection('users').doc(currentUser.uid).collection('projects').add(project)
         .then((docRef) => {
             console.log("✅ Проект сохранен с ID:", docRef.id);
-            hideSaveLoader();
             
-            // Показываем уведомление об успехе
+            // ===== НОВЫЙ КОД: СОХРАНЯЕМ ID ПРОЕКТА =====
+            window.currentProjectId = docRef.id;
+            
+            // ===== НОВЫЙ КОД: ЕСЛИ ЕСТЬ ФОТО, СОХРАНЯЕМ ИХ =====
+            if (typeof galleryImages !== 'undefined' && galleryImages.length > 0) {
+                console.log("📸 Сохраняем фотографии:", galleryImages.length);
+                
+                db.collection('users').doc(currentUser.uid).collection('projects').doc(docRef.id)
+                    .update({
+                        gallery: galleryImages.map(img => ({
+                            data: img.data,
+                            timestamp: img.timestamp,
+                            roomId: img.roomId,
+                            roomName: img.roomName,
+                            fileName: img.fileName
+                        }))
+                    })
+                    .then(() => {
+                        console.log("✅ Фотографии сохранены");
+                    })
+                    .catch((error) => {
+                        console.error("❌ Ошибка сохранения фото:", error);
+                    });
+            }
+            // ===== КОНЕЦ НОВОГО КОДА =====
+            
+            hideSaveLoader();
             showSuccessNotification('Проект успешно сохранен!');
             
-            // Обновляем список проектов, если модальное окно открыто
             if (document.getElementById('projectsModal').style.display === 'flex') {
                 openProjectsModal();
             }
@@ -449,9 +470,32 @@ function loadProject(projectId) {
                     if (typeof renderTabs === 'function') renderTabs();
                     if (typeof draw === 'function') draw();
 
+                    // ===== НОВЫЙ КОД: ЗАГРУЖАЕМ ГАЛЕРЕЮ =====
+                    if (project.gallery && project.gallery.length > 0) {
+                        console.log("📸 Загружаем фотографии:", project.gallery.length);
+                        
+                        // Проверяем, существует ли переменная galleryImages
+                        if (typeof galleryImages !== 'undefined') {
+                            galleryImages = project.gallery;
+                        } else {
+                            // Если нет, создаем глобальную переменную
+                            window.galleryImages = project.gallery;
+                        }
+                        
+                        // Сохраняем ID проекта
+                        window.currentProjectId = projectId;
+                        
+                        console.log("✅ Галерея загружена");
+                    } else {
+                        if (typeof galleryImages !== 'undefined') {
+                            galleryImages = [];
+                        } else {
+                            window.galleryImages = [];
+                        }
+                    }
+                    // ===== КОНЕЦ НОВОГО КОДА =====
+
                     closeProjectsModal();
-                    
-                    // Показываем информацию о загруженном проекте
                     showSuccessNotification(`Проект "${project.name}" загружен`);
                     
                     // Если есть информация о клиенте, показываем её в консоли
