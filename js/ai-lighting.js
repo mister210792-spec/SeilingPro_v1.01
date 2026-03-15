@@ -22,7 +22,7 @@ if (!window.LIGHTING_STANDARDS) {
     };
 }
 
-// Вспомогательные функции из core.js (дублируем для надежности)
+// Вспомогательные функции
 function calculateRoomArea(room) {
     if (!room || !room.closed || !room.points || room.points.length < 3) return 0;
     
@@ -110,6 +110,33 @@ class LightingAIAssistant {
         };
     }
     
+    calculateLightingRequirements() {
+        const roomStandard = this.standards.roomTypes[this.roomType] || 
+                            { lux: 150, name: 'Стандарт' };
+        const fixtureSpec = this.standards.fixtures[this.mainFixtureType] || 
+                           { powerRange: [12], lumenPerWatt: 80, minDistance: 1000, wallOffset: 600 };
+        
+        const requiredLux = roomStandard.lux * 1.2;
+        const totalLumens = requiredLux * this.area;
+        
+        const avgPower = fixtureSpec.powerRange[1] || 12;
+        const lumensPerFixture = avgPower * fixtureSpec.lumenPerWatt;
+        
+        let requiredCount = Math.max(1, Math.ceil(totalLumens / lumensPerFixture));
+        const maxByArea = Math.ceil(this.area / 2);
+        requiredCount = Math.min(requiredCount, maxByArea, 12); // Не больше 12 светильников
+        
+        return {
+            requiredLux,
+            totalLumens,
+            requiredCount,
+            avgPower,
+            lumensPerFixture,
+            fixtureSpec,
+            estimatedPower: requiredCount * avgPower
+        };
+    }
+    
     calculateOptimalLayout() {
         try {
             const requirements = this.calculateLightingRequirements();
@@ -164,33 +191,6 @@ class LightingAIAssistant {
                 }
             };
         }
-    }
-    
-    calculateLightingRequirements() {
-        const roomStandard = this.standards.roomTypes[this.roomType] || 
-                            { lux: 150, name: 'Стандарт' };
-        const fixtureSpec = this.standards.fixtures[this.mainFixtureType] || 
-                           { powerRange: [12], lumenPerWatt: 80, minDistance: 1000, wallOffset: 600 };
-        
-        const requiredLux = roomStandard.lux * 1.2;
-        const totalLumens = requiredLux * this.area;
-        
-        const avgPower = fixtureSpec.powerRange[1] || 12;
-        const lumensPerFixture = avgPower * fixtureSpec.lumenPerWatt;
-        
-        let requiredCount = Math.max(1, Math.ceil(totalLumens / lumensPerFixture));
-        const maxByArea = Math.ceil(this.area / 2);
-        requiredCount = Math.min(requiredCount, maxByArea, 12); // Не больше 12 светильников
-        
-        return {
-            requiredLux,
-            totalLumens,
-            requiredCount,
-            avgPower,
-            lumensPerFixture,
-            fixtureSpec,
-            estimatedPower: requiredCount * avgPower
-        };
     }
     
     generateGridPositions(requirements) {
@@ -579,7 +579,7 @@ function showSmartAILoader() {
         min-width: 280px;
     `;
     loader.innerHTML = `
-        <div style="font-size: 48px; animation: pulse 1.5s infinite;">🧠</div>
+        <div style="font-size: 48px; animation: pulseAI 1.5s infinite;">🧠</div>
         <div style="font-size: 18px; margin-top: 15px;">ИИ анализирует помещение...</div>
     `;
     document.body.appendChild(loader);
@@ -673,17 +673,17 @@ function closeAIReport() {
     if (modal) modal.remove();
 }
 
-// Добавляем CSS-анимации
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-    }
-`;
-if (!document.querySelector('style[data-ai-styles]')) {
-    style.setAttribute('data-ai-styles', 'true');
+// Добавляем CSS-анимации ТОЛЬКО ЕСЛИ ИХ НЕТ
+if (!document.getElementById('aiAnimationStyles')) {
+    const style = document.createElement('style');
+    style.id = 'aiAnimationStyles';
+    style.textContent = `
+        @keyframes pulseAI {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    `;
     document.head.appendChild(style);
 }
 
