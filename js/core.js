@@ -800,12 +800,14 @@ function updateStats() {
 
 // В файле core.js - обновим generateFullEstimate для работы с двумя прайсами
 
+// Обновленная функция generateFullEstimate
 function generateFullEstimate() {
     let totalArea = 0, totalPerim = 0, globalElements = {}; 
     
     // Для детализации по материалам
     let canvasDetails = [];
     let profileDetails = [];
+    let insertDetails = [];
     
     rooms.forEach((r, roomIdx) => {
         let p = 0, a = 0;
@@ -820,7 +822,7 @@ function generateFullEstimate() {
         totalArea += roomArea;
         totalPerim += roomPerim;
         
-        // Детали по полотну (из первого прайса)
+        // Детали по полотну
         const canvasType = r.materials?.canvasType || 'pvc_matte';
         const canvasPrice = window.CANVAS_TYPES?.[canvasType]?.basePrice || 400;
         canvasDetails.push({
@@ -831,7 +833,12 @@ function generateFullEstimate() {
             cost: roomArea * canvasPrice
         });
         
-        // Детали по профилям (из первого прайса)
+        // Если выбран режим "без профиля" - пропускаем профили
+        if (r.materials?.noProfile) {
+            return; // переходим к следующей комнате
+        }
+        
+        // Детали по профилям (по стенам)
         if (r.materials?.wallProfiles) {
             for (let i = 0; i < r.points.length; i++) {
                 const p1 = r.points[i];
@@ -851,7 +858,20 @@ function generateFullEstimate() {
             }
         }
         
-        // Элементы (из второго прайса)
+        // НОВОЕ: Вставка по периметру
+        if (r.materials?.insertEnabled && r.materials.insertProfile) {
+            const insertPrice = window.PROFILE_TYPES?.[r.materials.insertProfile]?.basePrice || 180;
+            const insertLabel = window.PROFILE_TYPES?.[r.materials.insertProfile]?.label || 'Вставка';
+            insertDetails.push({
+                roomName: r.name,
+                profileType: 'Вставка: ' + insertLabel,
+                length: roomPerim,
+                price: insertPrice,
+                cost: roomPerim * insertPrice
+            });
+        }
+        
+        // Элементы (как было)
         if (r.elements) {
             r.elements.forEach(el => {
                 let key = el.subtype || (el.type === 'pipe' ? 'pipe' : el.type);
@@ -898,7 +918,13 @@ function generateFullEstimate() {
         rowsHTML += `<tr><td>Профиль: ${key}</td><td>${data.length.toFixed(2)} м.п.</td><td>${data.price}</td><td>${data.cost.toFixed(0)}</td></tr>`;
     });
     
-    // Элементы (из второго прайса)
+    // НОВОЕ: Вставки по периметру
+    insertDetails.forEach(d => {
+        totalSum += d.cost;
+        rowsHTML += `<tr><td>${d.profileType} (по периметру)</td><td>${d.length.toFixed(2)} м.п.</td><td>${d.price}</td><td>${d.cost.toFixed(0)}</td></tr>`;
+    });
+    
+    // Элементы (как было)
     for (let key in globalElements) {
         let data = globalElements[key];
         let def = getElementDef(key);
