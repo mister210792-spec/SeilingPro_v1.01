@@ -248,6 +248,7 @@ function renderWallProfilesList(room) {
     return html;
 }
 
+// ИСПРАВЛЕННАЯ функция расчета предпросмотра
 function calculateMaterialCostPreview(room) {
     if (!room.area) {
         // Рассчитываем площадь
@@ -259,10 +260,37 @@ function calculateMaterialCostPreview(room) {
         room.area = room.closed ? Math.abs(area/2)/1000000 : 0;
     }
     
+    // Расчет периметра
+    let perimeter = 0;
+    for(let i=0; i<room.points.length; i++) {
+        let j = (i+1)%room.points.length;
+        perimeter += Math.sqrt((room.points[j].x-room.points[i].x)**2 + (room.points[j].y-room.points[i].y)**2);
+    }
+    const perimeterM = perimeter / 1000;
+    
     const canvasPrice = CANVAS_TYPES[room.materials?.canvasType || 'pvc_matte'].basePrice;
     const canvasCost = room.area * canvasPrice;
     
     let profilesCost = 0;
+    let insertCost = 0;
+    
+    // ЕСЛИ ВЫБРАН РЕЖИМ "БЕЗ ПРОФИЛЯ" - ВОЗВРАЩАЕМ ТОЛЬКО ПОЛОТНО
+    if (room.materials?.noProfile) {
+        return `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span>Полотно:</span> <span>${room.area.toFixed(2)} м² × ${canvasPrice} руб = ${canvasCost.toFixed(0)} руб</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #999; font-style: italic;">
+                <span>Профили:</span> <span>не используются</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 2px solid #4caf50; margin-top: 10px; padding-top: 10px; color: #4caf50;">
+                <span>ИТОГО:</span> <span>${canvasCost.toFixed(0)} руб</span>
+            </div>
+        `;
+    }
+    
+    // ЕСЛИ РЕЖИМ "БЕЗ ПРОФИЛЯ" НЕ ВКЛЮЧЕН - СЧИТАЕМ ПРОФИЛИ
+    // Расчет стоимости профилей для стен
     if (room.materials?.wallProfiles) {
         for (let i = 0; i < room.points.length; i++) {
             const p1 = room.points[i];
@@ -273,15 +301,28 @@ function calculateMaterialCostPreview(room) {
         }
     }
     
+    // Расчет стоимости вставки по периметру
+    if (room.materials?.insertEnabled && room.materials.insertProfile) {
+        const insertPrice = PROFILE_TYPES[room.materials.insertProfile]?.basePrice || 180;
+        insertCost = perimeterM * insertPrice;
+    }
+    
+    const total = canvasCost + profilesCost + insertCost;
+    
     return `
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
             <span>Полотно:</span> <span>${room.area.toFixed(2)} м² × ${canvasPrice} руб = ${canvasCost.toFixed(0)} руб</span>
         </div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <span>Профили:</span> <span>${profilesCost.toFixed(0)} руб</span>
+            <span>Профили стен:</span> <span>${profilesCost.toFixed(0)} руб</span>
         </div>
+        ${insertCost > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--primary);">
+            <span>➕ Вставка по периметру:</span> <span>${perimeterM.toFixed(2)} м × ${(insertCost/perimeterM).toFixed(0)} руб = ${insertCost.toFixed(0)} руб</span>
+        </div>
+        ` : ''}
         <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;">
-            <span>ИТОГО:</span> <span>${(canvasCost + profilesCost).toFixed(0)} руб</span>
+            <span>ИТОГО:</span> <span>${total.toFixed(0)} руб</span>
         </div>
     `;
 }
