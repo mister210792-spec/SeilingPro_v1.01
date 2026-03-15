@@ -87,6 +87,9 @@
                 <button onclick="saveProject()" class="action-btn save-btn">
                     <span>✅</span> СОХРАНИТЬ
                 </button>
+                <button onclick="openGallery()" class="action-btn gallery-btn" style="background: #9c27b0; color: white;">
+        <span>📸</span> ГАЛЕРЕЯ
+    </button>
                 <button onclick="openProjectsModal()" class="action-btn projects-btn">
                     Мои проекты
                 </button>
@@ -99,22 +102,25 @@
         </div>
         
         <!-- Мобильные кнопки -->
-        <div class="mobile-project-controls">
-            <button onclick="saveProject()" class="mobile-project-btn save-btn">
-                <span class="btn-icon">✅</span>
-                <span class="btn-label">СОХРАНИТЬ</span>
-            </button>
-            <button onclick="openProjectsModal()" class="mobile-project-btn projects-btn">
-                <span class="btn-icon">📂</span>
-                <span class="btn-label">МОИ</span>
-            </button>
-            <button onclick="exportImage()" class="mobile-project-btn export-btn">
-                <span class="btn-icon">💾</span>
-                <span class="btn-label">PNG</span>
-            </button>
-        </div>
-    </div>
-</div>    
+       <!-- В mobile-project-controls -->
+<div class="mobile-project-controls">
+    <button onclick="saveProject()" class="mobile-project-btn save-btn">
+        <span class="btn-icon">✅</span>
+        <span class="btn-label">СОХРАНИТЬ</span>
+    </button>
+    <button onclick="openGallery()" class="mobile-project-btn gallery-btn" style="background: #9c27b0;">
+        <span class="btn-icon">📸</span>
+        <span class="btn-label">ФОТО</span>
+    </button>
+    <button onclick="openProjectsModal()" class="mobile-project-btn projects-btn">
+        <span class="btn-icon">📂</span>
+        <span class="btn-label">МОИ</span>
+    </button>
+    <button onclick="exportImage()" class="mobile-project-btn export-btn">
+        <span class="btn-icon">💾</span>
+        <span class="btn-label">PNG</span>
+    </button>
+</div>
     <!-- Мобильные кнопки управления проектами -->
     <div class="mobile-project-controls">
         <button onclick="saveProject()" class="mobile-project-btn save-btn">
