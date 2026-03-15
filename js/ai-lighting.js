@@ -406,53 +406,32 @@ generateGridPositions(requirements) {
         return valid;
     }
     
-    optimizePositions(positions, requirements) {
-        const optimized = [];
-        const fixtureSpec = requirements.fixtureSpec;
-        const minDistance = fixtureSpec.minDistance || 1000;
+    // УЛУЧШЕННАЯ оптимизация - сохраняем равномерность
+optimizePositions(positions, requirements) {
+    const optimized = [];
+    const fixtureSpec = requirements.fixtureSpec;
+    const minDistance = fixtureSpec.minDistance || 1000;
+    
+    // Если у нас есть равномерная сетка, просто берем первые N позиций
+    if (positions.length >= requirements.requiredCount) {
+        // Сортируем для равномерного распределения по комнате
+        positions.sort((a, b) => {
+            // Чередуем для равномерности
+            const aKey = Math.floor(a.x / 1000) + Math.floor(a.y / 1000) * 100;
+            const bKey = Math.floor(b.x / 1000) + Math.floor(b.y / 1000) * 100;
+            return aKey - bKey;
+        });
         
-        positions.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-        
-        for (const pos of positions) {
-            let tooClose = false;
-            
-            for (const existing of optimized) {
-                const dist = Math.sqrt(
-                    Math.pow(pos.x - existing.x, 2) + 
-                    Math.pow(pos.y - existing.y, 2)
-                );
-                
-                if (dist < minDistance) {
-                    tooClose = true;
-                    break;
-                }
-            }
-            
-            if (!tooClose) {
-                optimized.push(pos);
-                if (optimized.length >= requirements.requiredCount) {
-                    break;
-                }
-            }
+        // Берем нужное количество
+        for (let i = 0; i < requirements.requiredCount && i < positions.length; i++) {
+            optimized.push(positions[i]);
         }
-        
-        // Если мало точек, добавляем вокруг центра
-        if (optimized.length < requirements.requiredCount) {
-            const needed = Math.min(requirements.requiredCount - optimized.length, 4);
-            for (let i = 0; i < needed; i++) {
-                const angle = (i / needed) * Math.PI * 2;
-                const radius = 600;
-                const x = this.center.x + Math.cos(angle) * radius;
-                const y = this.center.y + Math.sin(angle) * radius;
-                
-                if (isPointInPolygon({ x, y }, this.room.points)) {
-                    optimized.push({ x, y, type: 'main', priority: 1 });
-                }
-            }
-        }
-        
-        return optimized;
+    } else {
+        // Если позиций мало, добавляем все
+        optimized.push(...positions);
     }
+    
+    return optimized;
 }
 
 // Функции интерфейса
