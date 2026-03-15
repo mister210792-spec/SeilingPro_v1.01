@@ -124,17 +124,9 @@ const LIGHTING_STANDARDS = {
             mounting: 'perimeter',
             colorTemps: ['2700K', '3000K', '4000K']
         }
-    },
-    
-    // Коэффициенты высоты потолка 
-    heightCoefficients: {
-        '2.5': 1.0,
-        '2.7': 1.0,
-        '3.0': 1.2,
-        '3.5': 1.5,
-        '4.0': 2.0
     }
 };
 
 // Экспортируем в глобальную область
 window.LIGHTING_STANDARDS = LIGHTING_STANDARDS;
+console.log("✅ Lighting standards loaded");
