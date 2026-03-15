@@ -352,12 +352,48 @@ function updateMaterialPreview() {
     }
 }
 
+// ИСПРАВЛЕННАЯ функция сохранения настроек
 function saveMaterialSettings() {
     const room = rooms[activeRoom];
     if (!room) return;
     
-    // Сохраняем текущие значения из формы
-    updateMaterialPreview();
+    // Убеждаемся, что materials существует
+    if (!room.materials) room.materials = {};
+    
+    // Сохраняем тип полотна
+    const canvasSelect = document.getElementById('canvasTypeSelect');
+    if (canvasSelect) {
+        room.materials.canvasType = canvasSelect.value;
+    }
+    
+    // Сохраняем настройки профилей - ВАЖНО: сначала читаем чекбоксы
+    const noProfileCheck = document.getElementById('noProfileCheck');
+    if (noProfileCheck) {
+        room.materials.noProfile = noProfileCheck.checked;
+        console.log('✅ noProfile сохранен:', room.materials.noProfile);
+    }
+    
+    const insertEnabledCheck = document.getElementById('insertEnabledCheck');
+    if (insertEnabledCheck) {
+        room.materials.insertEnabled = insertEnabledCheck.checked;
+        console.log('✅ insertEnabled сохранен:', room.materials.insertEnabled);
+    }
+    
+    const insertProfileSelect = document.getElementById('insertProfileSelect');
+    if (insertProfileSelect) {
+        room.materials.insertProfile = insertProfileSelect.value;
+        console.log('✅ insertProfile сохранен:', room.materials.insertProfile);
+    }
+    
+    // Сохраняем профили для стен
+    room.materials.wallProfiles = room.materials.wallProfiles || {};
+    const profileSelects = document.querySelectorAll('.wall-profile-select');
+    profileSelects.forEach(select => {
+        const wallIndex = select.dataset.wall;
+        room.materials.wallProfiles[wallIndex] = select.value;
+    });
+    
+    console.log('✅ ИТОГОВЫЕ НАСТРОЙКИ:', room.materials);
     
     // Обновляем отображение и смету
     draw();
@@ -365,7 +401,10 @@ function saveMaterialSettings() {
     
     closeMaterialModal();
     
-    console.log("✅ Материалы сохранены для комнаты", room.name);
+    // Показываем уведомление
+    if (typeof showNotification === 'function') {
+        showNotification('✅ Материалы сохранены');
+    }
 }
 
 function closeMaterialModal() {
@@ -811,7 +850,7 @@ function toggleInsertSettings() {
     updateMaterialPreview();
 }
 
-// Обновленная функция расчета предпросмотра
+// ИСПРАВЛЕННАЯ функция расчета предпросмотра
 function calculateMaterialCostPreview(room) {
     if (!room.area) {
         // Рассчитываем площадь
@@ -836,22 +875,29 @@ function calculateMaterialCostPreview(room) {
     
     let profilesCost = 0;
     let insertCost = 0;
+    let insertLength = 0;
+    let insertPricePerM = 0;
     
-    // Если выбран режим "без профиля"
-    if (room.materials?.noProfile) {
+    // ВАЖНО: проверяем noProfile
+    const noProfile = room.materials?.noProfile === true;
+    console.log('noProfile в расчете:', noProfile);
+    
+    // ЕСЛИ ВЫБРАН РЕЖИМ "БЕЗ ПРОФИЛЯ" - НЕ СЧИТАЕМ ПРОФИЛИ
+    if (noProfile) {
         return `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #666;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span>Полотно:</span> <span>${room.area.toFixed(2)} м² × ${canvasPrice} руб = ${canvasCost.toFixed(0)} руб</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #999;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #999; font-style: italic;">
                 <span>Профили:</span> <span>не используются</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 2px solid #4caf50; margin-top: 10px; padding-top: 10px; color: #4caf50;">
                 <span>ИТОГО:</span> <span>${canvasCost.toFixed(0)} руб</span>
             </div>
         `;
     }
     
+    // ЕСЛИ РЕЖИМ "БЕЗ ПРОФИЛЯ" НЕ ВКЛЮЧЕН - СЧИТАЕМ ПРОФИЛИ
     // Расчет стоимости профилей для стен
     if (room.materials?.wallProfiles) {
         for (let i = 0; i < room.points.length; i++) {
@@ -865,8 +911,9 @@ function calculateMaterialCostPreview(room) {
     
     // Расчет стоимости вставки по периметру
     if (room.materials?.insertEnabled && room.materials.insertProfile) {
-        const insertPrice = PROFILE_TYPES[room.materials.insertProfile]?.basePrice || 180;
-        insertCost = perimeterM * insertPrice;
+        insertPricePerM = PROFILE_TYPES[room.materials.insertProfile]?.basePrice || 180;
+        insertLength = perimeterM;
+        insertCost = insertLength * insertPricePerM;
     }
     
     const total = canvasCost + profilesCost + insertCost;
@@ -880,7 +927,8 @@ function calculateMaterialCostPreview(room) {
         </div>
         ${insertCost > 0 ? `
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--primary);">
-            <span>➕ Вставка по периметру:</span> <span>${perimeterM.toFixed(2)} м × ${(insertCost/perimeterM).toFixed(0)} руб = ${insertCost.toFixed(0)} руб</span>
+            <span>➕ Вставка по периметру:</span> 
+            <span>${insertLength.toFixed(2)} м × ${insertPricePerM} руб = ${insertCost.toFixed(0)} руб</span>
         </div>
         ` : ''}
         <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;">
@@ -888,7 +936,6 @@ function calculateMaterialCostPreview(room) {
         </div>
     `;
 }
-
 // Обновленная функция сохранения настроек
 function saveMaterialSettings() {
     const room = rooms[activeRoom];
