@@ -116,15 +116,27 @@ class LightingAIAssistant {
         const fixtureSpec = this.standards.fixtures[this.mainFixtureType] || 
                            { powerRange: [12], lumenPerWatt: 80, minDistance: 1000, wallOffset: 600 };
         
-        const requiredLux = roomStandard.lux * 1.2;
+        // Базовые требования по освещенности
+        const requiredLux = roomStandard.lux;
         const totalLumens = requiredLux * this.area;
         
         const avgPower = fixtureSpec.powerRange[1] || 12;
         const lumensPerFixture = avgPower * fixtureSpec.lumenPerWatt;
         
-        let requiredCount = Math.max(1, Math.ceil(totalLumens / lumensPerFixture));
+        // Рассчитываем необходимое количество
+        let requiredCount = Math.ceil(totalLumens / lumensPerFixture);
+        
+        // Минимум 4 светильника для равномерности
+        requiredCount = Math.max(4, requiredCount);
+        
+        // Ограничиваем разумным количеством
         const maxByArea = Math.ceil(this.area / 2);
-        requiredCount = Math.min(requiredCount, maxByArea, 12); // Не больше 12 светильников
+        const minByArea = Math.floor(this.area / 4);
+        
+        requiredCount = Math.min(requiredCount, maxByArea);
+        requiredCount = Math.max(requiredCount, minByArea);
+        
+        console.log(`💡 Требуется светильников: ${requiredCount} (площадь ${this.area.toFixed(2)} м²)`);
         
         return {
             requiredLux,
@@ -145,6 +157,7 @@ class LightingAIAssistant {
             let candidates = [];
             
             if (this.mainFixtureType === 'CHANDELIER') {
+                // Люстра - одна по центру
                 candidates = [{
                     x: this.center.x,
                     y: this.center.y,
@@ -152,8 +165,10 @@ class LightingAIAssistant {
                     priority: 10
                 }];
             } else if (this.mainFixtureType === 'TRACK') {
+                // Трековая система
                 candidates = this.generateTrackPositions();
             } else {
+                // Точечные светильники - РАВНОМЕРНАЯ СЕТКА
                 candidates = this.generateGridPositions(requirements);
             }
             
@@ -172,90 +187,132 @@ class LightingAIAssistant {
                     requiredLux: requirements.requiredLux,
                     totalLumens: requirements.totalLumens,
                     estimatedPower: requirements.estimatedPower,
-                    confidence: 85
+                    confidence: 90
                 }
             };
         } catch (error) {
             console.error("❌ Ошибка в calculateOptimalLayout:", error);
-            // Возвращаем запасной вариант
+            // Запасной вариант - сетка 3x3
+            const fallbackPositions = this.generateFallbackPositions();
             return {
-                main: [{ x: this.center.x, y: this.center.y, type: 'main' }],
+                main: fallbackPositions,
                 accent: [],
                 perimeter: [],
                 stats: {
                     area: this.area,
                     requiredLux: 150,
                     totalLumens: this.area * 150,
-                    estimatedPower: 50,
-                    confidence: 50
+                    estimatedPower: 100,
+                    confidence: 60
                 }
             };
         }
     }
     
     // УЛУЧШЕННАЯ генерация равномерной сетки
-generateGridPositions(requirements) {
-    const positions = [];
-    const count = requirements.requiredCount;
-    const fixtureSpec = requirements.fixtureSpec;
-    const wallOffset = fixtureSpec.wallOffset || 600;
-    
-    const polygon = this.room.points;
-    
-    // Получаем реальные границы комнаты
-    const minX = this.bounds.minX + wallOffset;
-    const maxX = this.bounds.maxX - wallOffset;
-    const minY = this.bounds.minY + wallOffset;
-    const maxY = this.bounds.maxY - wallOffset;
-    
-    // Вычисляем оптимальное количество рядов и колонок
-    const width = maxX - minX;
-    const height = maxY - minY;
-    
-    // Соотношение сторон комнаты
-    const aspectRatio = width / height;
-    
-    // Рассчитываем оптимальную сетку
-    let cols = Math.ceil(Math.sqrt(count * aspectRatio));
-    let rows = Math.ceil(count / cols);
-    
-    // Корректируем, чтобы получить ровно count или ближайшее меньшее
-    while (cols * rows > count * 1.2) {
-        if (cols > rows) {
-            cols--;
-        } else {
-            rows--;
-        }
-    }
-    
-    cols = Math.max(2, cols);
-    rows = Math.max(2, rows);
-    
-    console.log(`📐 Сетка: ${cols} x ${rows} = ${cols * rows} позиций`);
-    
-    // Шаг между светильниками
-    const stepX = width / (cols + 1);
-    const stepY = height / (rows + 1);
-    
-    // Генерируем позиции строго по сетке
-    for (let r = 1; r <= rows; r++) {
-        for (let c = 1; c <= cols; c++) {
-            const x = minX + c * stepX;
-            const y = minY + r * stepY;
-            
-            // Проверяем, что точка внутри комнаты
-            if (isPointInPolygon({ x, y }, polygon)) {
-                positions.push({
-                    x, y,
-                    type: 'main',
-                    priority: 10 // Высокий приоритет для равномерной сетки
-                });
+    generateGridPositions(requirements) {
+        const positions = [];
+        const count = requirements.requiredCount;
+        const fixtureSpec = requirements.fixtureSpec;
+        const wallOffset = fixtureSpec.wallOffset || 600;
+        
+        const polygon = this.room.points;
+        
+        // Получаем реальные границы комнаты с отступом от стен
+        const minX = this.bounds.minX + wallOffset;
+        const maxX = this.bounds.maxX - wallOffset;
+        const minY = this.bounds.minY + wallOffset;
+        const maxY = this.bounds.maxY - wallOffset;
+        
+        // Проверяем, что отступы не слишком большие
+        const effectiveWidth = Math.max(1000, maxX - minX);
+        const effectiveHeight = Math.max(1000, maxY - minY);
+        
+        // Соотношение сторон комнаты
+        const aspectRatio = effectiveWidth / effectiveHeight;
+        
+        // Рассчитываем оптимальную сетку
+        let cols = Math.round(Math.sqrt(count * aspectRatio));
+        let rows = Math.round(count / cols);
+        
+        // Корректируем, чтобы получить ровно нужное количество
+        if (cols * rows < count) {
+            if (aspectRatio > 1) {
+                cols++;
+            } else {
+                rows++;
             }
         }
+        
+        cols = Math.max(2, Math.min(cols, 6));
+        rows = Math.max(2, Math.min(rows, 6));
+        
+        console.log(`📐 Сетка: ${cols} x ${rows} = ${cols * rows} позиций`);
+        
+        // Шаг между светильниками (равномерный)
+        const stepX = effectiveWidth / (cols + 1);
+        const stepY = effectiveHeight / (rows + 1);
+        
+        // Генерируем позиции строго по сетке
+        for (let r = 1; r <= rows; r++) {
+            for (let c = 1; c <= cols; c++) {
+                const x = minX + c * stepX;
+                const y = minY + r * stepY;
+                
+                // Проверяем, что точка внутри комнаты
+                if (isPointInPolygon({ x, y }, polygon)) {
+                    positions.push({
+                        x: x,
+                        y: y,
+                        type: 'main',
+                        priority: 10
+                    });
+                }
+            }
+        }
+        
+        // Если получилось слишком много позиций, равномерно прореживаем
+        if (positions.length > count * 1.5) {
+            const step = Math.floor(positions.length / count);
+            const filtered = [];
+            for (let i = 0; i < positions.length && filtered.length < count; i += step) {
+                filtered.push(positions[i]);
+            }
+            return filtered;
+        }
+        
+        return positions;
     }
     
-    return positions;
-}
+    // Запасной вариант - простая сетка 3x3
+    generateFallbackPositions() {
+        const positions = [];
+        const minX = this.bounds.minX + 600;
+        const maxX = this.bounds.maxX - 600;
+        const minY = this.bounds.minY + 600;
+        const maxY = this.bounds.maxY - 600;
+        
+        const stepX = (maxX - minX) / 4;
+        const stepY = (maxY - minY) / 4;
+        
+        for (let r = 1; r <= 3; r++) {
+            for (let c = 1; c <= 3; c++) {
+                const x = minX + c * stepX;
+                const y = minY + r * stepY;
+                
+                if (isPointInPolygon({ x: x, y: y }, this.room.points)) {
+                    positions.push({
+                        x: x,
+                        y: y,
+                        type: 'main',
+                        priority: 5
+                    });
+                }
+            }
+        }
+        
+        return positions;
+    }
     
     generateTrackPositions() {
         const positions = [];
@@ -271,7 +328,7 @@ generateGridPositions(requirements) {
             
             if (length > maxLength) {
                 maxLength = length;
-                bestEdge = { p1, p2 };
+                bestEdge = { p1: p1, p2: p2 };
             }
         }
         
@@ -295,7 +352,7 @@ generateGridPositions(requirements) {
                         x: testX,
                         y: testY,
                         rotation: angle * 180 / Math.PI,
-                        width: maxLength * 0.7,
+                        width: maxLength * 0.8,
                         type: 'main',
                         priority: 8
                     });
@@ -319,23 +376,23 @@ generateGridPositions(requirements) {
             const prev = this.room.points[(i - 1 + this.room.points.length) % this.room.points.length];
             const next = this.room.points[(i + 1) % this.room.points.length];
             
-            // Векторы от точки к соседям
-            const dir1 = { x: point.x - prev.x, y: point.y - prev.y };
-            const dir2 = { x: next.x - point.x, y: next.y - point.y };
+            // Векторы от точки
+            const toPrev = { x: prev.x - point.x, y: prev.y - point.y };
+            const toNext = { x: next.x - point.x, y: next.y - point.y };
             
-            const len1 = Math.sqrt(dir1.x**2 + dir1.y**2);
-            const len2 = Math.sqrt(dir2.x**2 + dir2.y**2);
+            // Усредненное направление внутрь
+            const dirX = (toPrev.x + toNext.x) / 2;
+            const dirY = (toPrev.y + toNext.y) / 2;
             
-            if (len1 > 0 && len2 > 0) {
-                // Направление внутрь комнаты
-                const norm1 = { x: dir1.x / len1, y: dir1.y / len1 };
-                const norm2 = { x: dir2.x / len2, y: dir2.y / len2 };
+            const len = Math.sqrt(dirX*dirX + dirY*dirY);
+            
+            if (len > 0) {
+                // Нормализуем и смещаем на 400 мм внутрь
+                const normX = dirX / len * 400;
+                const normY = dirY / len * 400;
                 
-                const innerX = (norm1.x + norm2.x) * 300;
-                const innerY = (norm1.y + norm2.y) * 300;
-                
-                const accentX = point.x - innerX;
-                const accentY = point.y - innerY;
+                const accentX = point.x + normX;
+                const accentY = point.y + normY;
                 
                 if (isPointInPolygon({ x: accentX, y: accentY }, this.room.points)) {
                     positions.push({
@@ -358,28 +415,34 @@ generateGridPositions(requirements) {
             const p2 = this.room.points[(i + 1) % this.room.points.length];
             
             const length = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
-            if (length < 500) continue; // Пропускаем короткие стены
+            if (length < 1000) continue;
             
             const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
             
-            const centerX = (p1.x + p2.x) / 2;
-            const centerY = (p1.y + p2.y) / 2;
+            // Делим длинную стену на несколько сегментов
+            const segments = Math.floor(length / 2000) + 1;
             
-            // Пробуем смещение в обе стороны
-            for (const sign of [1, -1]) {
-                const perpAngle = angle + (Math.PI / 2) * sign;
-                const testX = centerX + Math.cos(perpAngle) * 300;
-                const testY = centerY + Math.sin(perpAngle) * 300;
+            for (let s = 1; s <= segments; s++) {
+                const t = s / (segments + 1);
+                const centerX = p1.x + (p2.x - p1.x) * t;
+                const centerY = p1.y + (p2.y - p1.y) * t;
                 
-                if (isPointInPolygon({ x: testX, y: testY }, this.room.points)) {
-                    positions.push({
-                        x: testX,
-                        y: testY,
-                        rotation: angle * 180 / Math.PI,
-                        width: length * 0.6,
-                        type: 'perimeter'
-                    });
-                    break;
+                // Пробуем смещение в обе стороны
+                for (const sign of [1, -1]) {
+                    const perpAngle = angle + (Math.PI / 2) * sign;
+                    const testX = centerX + Math.cos(perpAngle) * 300;
+                    const testY = centerY + Math.sin(perpAngle) * 300;
+                    
+                    if (isPointInPolygon({ x: testX, y: testY }, this.room.points)) {
+                        positions.push({
+                            x: testX,
+                            y: testY,
+                            rotation: angle * 180 / Math.PI,
+                            width: 1200,
+                            type: 'perimeter'
+                        });
+                        break;
+                    }
                 }
             }
         }
@@ -396,7 +459,7 @@ generateGridPositions(requirements) {
                 continue;
             }
             
-            const key = `${Math.round(pos.x/50)},${Math.round(pos.y/50)}`;
+            const key = `${Math.round(pos.x/100)},${Math.round(pos.y/100)}`;
             if (seen.has(key)) continue;
             seen.add(key);
             
@@ -406,32 +469,38 @@ generateGridPositions(requirements) {
         return valid;
     }
     
-    // УЛУЧШЕННАЯ оптимизация - сохраняем равномерность
-optimizePositions(positions, requirements) {
-    const optimized = [];
-    const fixtureSpec = requirements.fixtureSpec;
-    const minDistance = fixtureSpec.minDistance || 1000;
-    
-    // Если у нас есть равномерная сетка, просто берем первые N позиций
-    if (positions.length >= requirements.requiredCount) {
-        // Сортируем для равномерного распределения по комнате
-        positions.sort((a, b) => {
-            // Чередуем для равномерности
-            const aKey = Math.floor(a.x / 1000) + Math.floor(a.y / 1000) * 100;
-            const bKey = Math.floor(b.x / 1000) + Math.floor(b.y / 1000) * 100;
-            return aKey - bKey;
-        });
+    optimizePositions(positions, requirements) {
+        const optimized = [];
         
-        // Берем нужное количество
-        for (let i = 0; i < requirements.requiredCount && i < positions.length; i++) {
+        // Просто берем нужное количество позиций (они уже равномерные)
+        for (let i = 0; i < Math.min(requirements.requiredCount, positions.length); i++) {
             optimized.push(positions[i]);
         }
-    } else {
-        // Если позиций мало, добавляем все
-        optimized.push(...positions);
+        
+        // Если мало позиций, добавляем вокруг центра
+        if (optimized.length < requirements.requiredCount) {
+            const needed = requirements.requiredCount - optimized.length;
+            const center = this.findRoomCenter();
+            
+            for (let i = 0; i < needed; i++) {
+                const angle = (i / needed) * Math.PI * 2;
+                const radius = 800;
+                const x = center.x + Math.cos(angle) * radius;
+                const y = center.y + Math.sin(angle) * radius;
+                
+                if (isPointInPolygon({ x: x, y: y }, this.room.points)) {
+                    optimized.push({ 
+                        x: x, 
+                        y: y, 
+                        type: 'main', 
+                        priority: 1 
+                    });
+                }
+            }
+        }
+        
+        return optimized;
     }
-    
-    return optimized;
 }
 
 // Функции интерфейса
@@ -450,7 +519,7 @@ function smartLightingOptimization() {
     }
     
     if (!room.closed) {
-        alert('❌ Сначала замкните контур комнаты (соедините последнюю точку с первой)');
+        alert('❌ Сначала замкните контур комнаты');
         return;
     }
     
@@ -599,16 +668,18 @@ function applySmartLightingToRoom(room, result, addAccent, addPerimeter, mainLig
     if (!room.elements) room.elements = [];
     
     // Добавляем основные светильники
-    result.main.forEach(pos => {
-        room.elements.push({
-            type: mainLightType === 'TRACK' ? 'rail' : 'light',
-            subtype: mainLightType,
-            x: pos.x,
-            y: pos.y,
-            rotation: pos.rotation || 0,
-            width: pos.width
+    if (result.main && result.main.length > 0) {
+        result.main.forEach(pos => {
+            room.elements.push({
+                type: mainLightType === 'TRACK' ? 'rail' : 'light',
+                subtype: mainLightType,
+                x: pos.x,
+                y: pos.y,
+                rotation: pos.rotation || 0,
+                width: pos.width
+            });
         });
-    });
+    }
     
     // Добавляем акцентное освещение
     if (addAccent && result.accent && result.accent.length > 0) {
@@ -649,7 +720,7 @@ function showOptimizationReport(result) {
                 <h3 style="margin-top: 0;">📊 Результат оптимизации</h3>
                 
                 <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                    <div>Основных светильников: <b>${result.main.length} шт.</b></div>
+                    <div>Основных светильников: <b>${result.main ? result.main.length : 0} шт.</b></div>
                     <div>Акцентных: <b>${result.accent ? result.accent.length : 0} шт.</b></div>
                     <div>Периметр: <b>${result.perimeter ? result.perimeter.length : 0} линий</b></div>
                     <div style="margin-top: 10px;">Освещенность: <b>${Math.round(result.stats.requiredLux)} лк</b></div>
@@ -670,7 +741,7 @@ function closeAIReport() {
     if (modal) modal.remove();
 }
 
-// Добавляем CSS-анимации ТОЛЬКО ЕСЛИ ИХ НЕТ
+// Добавляем CSS-анимации
 if (!document.getElementById('aiAnimationStyles')) {
     const style = document.createElement('style');
     style.id = 'aiAnimationStyles';
