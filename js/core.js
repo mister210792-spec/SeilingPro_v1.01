@@ -798,7 +798,7 @@ function updateStats() {
     return totalElemCounts;
 }
 
-// В файле core.js - обновим generateFullEstimate для работы с двумя прайсами
+// В файле core.js - обновим  для работы с двумя прайсами
 
 // Обновленная функция generateFullEstimate
 function generateFullEstimate() {
@@ -833,43 +833,44 @@ function generateFullEstimate() {
             cost: roomArea * canvasPrice
         });
         
-        // Если выбран режим "без профиля" - пропускаем профили
-        if (r.materials?.noProfile) {
-            return; // переходим к следующей комнате
-        }
-        
-        // Детали по профилям (по стенам)
-        if (r.materials?.wallProfiles) {
-            for (let i = 0; i < r.points.length; i++) {
-                const p1 = r.points[i];
-                const p2 = r.points[(i + 1) % r.points.length];
-                const wallLength = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2) / 1000;
-                const profileType = r.materials.wallProfiles[i] || 'wall_standard';
-                const profilePrice = window.PROFILE_TYPES?.[profileType]?.basePrice || 180;
-                
-                profileDetails.push({
-                    roomName: r.name,
-                    wallIndex: i+1,
-                    profileType: window.PROFILE_TYPES?.[profileType]?.label || 'Стеновой',
-                    length: wallLength,
-                    price: profilePrice,
-                    cost: wallLength * profilePrice
-                });
-            }
-        }
-        
-        // НОВОЕ: Вставка по периметру
-        if (r.materials?.insertEnabled && r.materials.insertProfile) {
-            const insertPrice = window.PROFILE_TYPES?.[r.materials.insertProfile]?.basePrice || 180;
-            const insertLabel = window.PROFILE_TYPES?.[r.materials.insertProfile]?.label || 'Вставка';
-            insertDetails.push({
+       // Если выбран режим "без профиля" - пропускаем профили
+if (r.materials?.noProfile) {
+    console.log('Комната без профиля:', r.name);
+    // НЕ добавляем profileDetails и insertDetails
+} else {
+    // Детали по профилям (по стенам)
+    if (r.materials?.wallProfiles) {
+        for (let i = 0; i < r.points.length; i++) {
+            const p1 = r.points[i];
+            const p2 = r.points[(i + 1) % r.points.length];
+            const wallLength = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2) / 1000;
+            const profileType = r.materials.wallProfiles[i] || 'wall_standard';
+            const profilePrice = window.PROFILE_TYPES?.[profileType]?.basePrice || 180;
+            
+            profileDetails.push({
                 roomName: r.name,
-                profileType: 'Вставка: ' + insertLabel,
-                length: roomPerim,
-                price: insertPrice,
-                cost: roomPerim * insertPrice
+                wallIndex: i+1,
+                profileType: window.PROFILE_TYPES?.[profileType]?.label || 'Стеновой',
+                length: wallLength,
+                price: profilePrice,
+                cost: wallLength * profilePrice
             });
         }
+    }
+    
+    // Вставка по периметру
+    if (r.materials?.insertEnabled && r.materials.insertProfile) {
+        const insertPrice = window.PROFILE_TYPES?.[r.materials.insertProfile]?.basePrice || 180;
+        const insertLabel = window.PROFILE_TYPES?.[r.materials.insertProfile]?.label || 'Вставка';
+        insertDetails.push({
+            roomName: r.name,
+            profileType: 'Вставка: ' + insertLabel,
+            length: roomPerim,
+            price: insertPrice,
+            cost: roomPerim * insertPrice
+        });
+    }
+}
         
         // Элементы (как было)
         if (r.elements) {
