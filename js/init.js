@@ -67,5 +67,10 @@ window.updateCurrentUser = updateCurrentUser;
 window.currentUser = currentUser;
 window.selectedRegPlan = selectedRegPlan;
 window.initializeFirebase = initializeFirebase;
-
+// Проверка обновлений при запуске
+setTimeout(() => {
+    if (typeof checkForUpdates === 'function') {
+        checkForUpdates();
+    }
+}, 2000);
 
