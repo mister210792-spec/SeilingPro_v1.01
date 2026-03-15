@@ -244,6 +244,20 @@
             <div class="stat-row"><span>Общий периметр:</span> <span id="totalPerim" class="total-val">0.00 м</span></div>
             <div id="totalElements" style="font-size: 11px; margin-top: 5px; opacity: 0.9;"></div>
         </div>
+        <!-- Добавь в конец side-menu, перед закрывающим div -->
+<div class="menu-section" style="border-top: 2px solid #eee; margin-top: 20px;">
+    <div style="display: flex; gap: 10px;">
+        <button onclick="showVersionInfo()" style="flex: 1; background: transparent; border: 1px solid #ddd;">
+            ℹ️ О программе
+        </button>
+        <button onclick="checkForUpdates()" style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+            🔍 Проверить
+        </button>
+    </div>
+    <div style="font-size: 10px; color: #999; text-align: center; margin-top: 8px;">
+        Версия <span onclick="showVersionInfo()" style="cursor: pointer; text-decoration: underline;">${APP_VERSION}</span>
+    </div>
+</div>
 <!-- Админ-панель (видна только админу) -->
 <div class="menu-section" id="admin-section" style="display: none; border-top: 2px solid gold; margin-top: 20px;">
     <h3 style="background: gold; color: var(--dark);">👑 Админ-панель</h3>
