@@ -617,6 +617,286 @@ function generateFullEstimate() {
     win.document.write(`<html><head><title>Смета</title><style>body{font-family:sans-serif;padding:30px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:12px}.total{margin-top:20px;font-size:24px;background:#2c3e50;color:white;padding:20px;text-align:right}</style></head><body><h1>СМЕТА ПО ОБЪЕКТУ</h1><table><thead><tr><th>Наименование</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${rowsHTML}</tbody></table><div class="total">ИТОГО: ${totalSum.toFixed(0)} руб.</div></body></html>`);
     win.document.close();
 }
+// ===== НОВЫЕ ФУНКЦИИ ДЛЯ ВСТАВКИ ПО ПЕРИМЕТРУ =====
+
+// Обновленная функция показа модального окна с новыми опциями
+function showMaterialSelectionModal(roomIndex = activeRoom) {
+    const room = rooms[roomIndex];
+    if (!room) return;
+    
+    // Инициализируем объекты материалов для комнаты, если их нет
+    if (!room.materials) {
+        room.materials = {
+            canvasType: 'pvc_matte',
+            wallProfiles: {}, // Индекс стены -> тип профиля
+            insertEnabled: false, // НОВОЕ: вставка по периметру
+            insertProfile: 'wall_standard', // НОВОЕ: тип профиля для вставки
+            noProfile: false // НОВОЕ: без профиля
+        };
+    }
+    
+    // Заполняем HTML модального окна
+    const modalHtml = `
+        <div id="materialModal" class="modal" style="display: block; z-index: 6000;">
+            <div class="modal-content" style="width: 500px; max-width: 95%;">
+                <h3 style="margin-top: 0;">Материалы для "${room.name}"</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 10px;">🧵 Тип полотна</h4>
+                    <select id="canvasTypeSelect" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                        ${Object.keys(CANVAS_TYPES).map(key => {
+                            const ct = CANVAS_TYPES[key];
+                            return `<option value="${key}" ${room.materials.canvasType === key ? 'selected' : ''}>
+                                ${ct.label} - ${ct.basePrice} руб/м² ${ct.description ? `(${ct.description})` : ''}
+                            </option>`;
+                        }).join('')}
+                    </select>
+                </div>
+                
+                <!-- НОВЫЙ БЛОК: настройки профилей -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 10px; border-left: 4px solid var(--primary);">
+                    <h4 style="margin: 0 0 10px 0;">📏 Настройки профиля</h4>
+                    
+                    <!-- Галочка "Без профиля" -->
+                    <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px; cursor: pointer;">
+                        <input type="checkbox" id="noProfileCheck" ${room.materials.noProfile ? 'checked' : ''} onchange="toggleNoProfile()">
+                        <span style="font-weight: bold;">🚫 Без профиля</span>
+                        <span style="font-size: 12px; color: #666;">(в смете только полотно)</span>
+                    </label>
+                    
+                    <!-- Блок с настройками профилей (отключается если выбран "Без профиля") -->
+                    <div id="profilesSettingsBlock" style="${room.materials.noProfile ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                        <!-- Галочка "Вставка по периметру" -->
+                        <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px; cursor: pointer;">
+                            <input type="checkbox" id="insertEnabledCheck" ${room.materials.insertEnabled ? 'checked' : ''} onchange="toggleInsertSettings()">
+                            <span style="font-weight: bold;">🔄 Вставка по периметру</span>
+                            <span style="font-size: 12px; color: #666;">(добавляется к длине стены)</span>
+                        </label>
+                        
+                        <!-- Выбор профиля для вставки (показывается только если включена вставка) -->
+                        <div id="insertProfileBlock" style="display: ${room.materials.insertEnabled ? 'block' : 'none'}; margin-left: 25px; margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Тип профиля для вставки:</label>
+                            <select id="insertProfileSelect" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                                ${Object.keys(PROFILE_TYPES).map(key => {
+                                    const pt = PROFILE_TYPES[key];
+                                    return `<option value="${key}" ${room.materials.insertProfile === key ? 'selected' : ''}>
+                                        ${pt.label} - ${pt.basePrice} руб/м
+                                    </option>`;
+                                }).join('')}
+                            </select>
+                            <p style="font-size: 11px; color: #666; margin-top: 5px;">Вставка будет добавлена к периметру комнаты</p>
+                        </div>
+                        
+                        <!-- Типы профиля по стенам (основной крепеж) -->
+                        <h4 style="margin: 15px 0 10px 0;">🏗️ Профили для крепления</h4>
+                        <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                            Можно назначить разный профиль на каждую стену
+                        </p>
+                        
+                        <div id="wallsProfilesList" style="max-height: 300px; overflow-y: auto;">
+                            ${renderWallProfilesList(room)}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0;">💰 Предварительный расчет</h4>
+                    <div id="materialCostPreview">
+                        ${calculateMaterialCostPreview(room)}
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button onclick="saveMaterialSettings()" style="background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 8px;">
+                        Сохранить
+                    </button>
+                    <button onclick="closeMaterialModal()" style="background: #eee; border: none; padding: 10px 20px; border-radius: 8px;">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Удаляем старое модальное окно, если есть
+    const oldModal = document.getElementById('materialModal');
+    if (oldModal) oldModal.remove();
+    
+    // Добавляем новое
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Добавляем обработчики
+    document.getElementById('canvasTypeSelect').addEventListener('change', updateMaterialPreview);
+    document.getElementById('insertEnabledCheck')?.addEventListener('change', updateMaterialPreview);
+    document.getElementById('insertProfileSelect')?.addEventListener('change', updateMaterialPreview);
+    document.getElementById('noProfileCheck')?.addEventListener('change', updateMaterialPreview);
+    
+    // Добавляем обработчики для select'ов стен
+    document.querySelectorAll('.wall-profile-select').forEach(select => {
+        select.addEventListener('change', updateMaterialPreview);
+    });
+}
+
+// Новые функции для управления интерфейсом
+function toggleNoProfile() {
+    const noProfile = document.getElementById('noProfileCheck').checked;
+    const profilesBlock = document.getElementById('profilesSettingsBlock');
+    
+    if (profilesBlock) {
+        profilesBlock.style.opacity = noProfile ? '0.5' : '1';
+        profilesBlock.style.pointerEvents = noProfile ? 'none' : 'auto';
+    }
+    
+    // Если включен режим "без профиля", снимаем галочку вставки
+    if (noProfile) {
+        const insertCheck = document.getElementById('insertEnabledCheck');
+        if (insertCheck) {
+            insertCheck.checked = false;
+            document.getElementById('insertProfileBlock').style.display = 'none';
+        }
+    }
+    
+    updateMaterialPreview();
+}
+
+function toggleInsertSettings() {
+    const insertEnabled = document.getElementById('insertEnabledCheck').checked;
+    const insertBlock = document.getElementById('insertProfileBlock');
+    
+    if (insertBlock) {
+        insertBlock.style.display = insertEnabled ? 'block' : 'none';
+    }
+    
+    updateMaterialPreview();
+}
+
+// Обновленная функция расчета предпросмотра
+function calculateMaterialCostPreview(room) {
+    if (!room.area) {
+        // Рассчитываем площадь
+        let area = 0;
+        for(let i=0; i<room.points.length; i++) {
+            let j = (i+1)%room.points.length;
+            if(room.closed) area += room.points[i].x * room.points[j].y - room.points[j].x * room.points[i].y;
+        }
+        room.area = room.closed ? Math.abs(area/2)/1000000 : 0;
+    }
+    
+    // Расчет периметра
+    let perimeter = 0;
+    for(let i=0; i<room.points.length; i++) {
+        let j = (i+1)%room.points.length;
+        perimeter += Math.sqrt((room.points[j].x-room.points[i].x)**2 + (room.points[j].y-room.points[i].y)**2);
+    }
+    const perimeterM = perimeter / 1000;
+    
+    const canvasPrice = CANVAS_TYPES[room.materials?.canvasType || 'pvc_matte'].basePrice;
+    const canvasCost = room.area * canvasPrice;
+    
+    let profilesCost = 0;
+    let insertCost = 0;
+    
+    // Если выбран режим "без профиля"
+    if (room.materials?.noProfile) {
+        return `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #666;">
+                <span>Полотно:</span> <span>${room.area.toFixed(2)} м² × ${canvasPrice} руб = ${canvasCost.toFixed(0)} руб</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: #999;">
+                <span>Профили:</span> <span>не используются</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;">
+                <span>ИТОГО:</span> <span>${canvasCost.toFixed(0)} руб</span>
+            </div>
+        `;
+    }
+    
+    // Расчет стоимости профилей для стен
+    if (room.materials?.wallProfiles) {
+        for (let i = 0; i < room.points.length; i++) {
+            const p1 = room.points[i];
+            const p2 = room.points[(i + 1) % room.points.length];
+            const wallLength = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2) / 1000;
+            const profileType = room.materials.wallProfiles[i] || 'wall_standard';
+            profilesCost += wallLength * (PROFILE_TYPES[profileType]?.basePrice || 180);
+        }
+    }
+    
+    // Расчет стоимости вставки по периметру
+    if (room.materials?.insertEnabled && room.materials.insertProfile) {
+        const insertPrice = PROFILE_TYPES[room.materials.insertProfile]?.basePrice || 180;
+        insertCost = perimeterM * insertPrice;
+    }
+    
+    const total = canvasCost + profilesCost + insertCost;
+    
+    return `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>Полотно:</span> <span>${room.area.toFixed(2)} м² × ${canvasPrice} руб = ${canvasCost.toFixed(0)} руб</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>Профили стен:</span> <span>${profilesCost.toFixed(0)} руб</span>
+        </div>
+        ${insertCost > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--primary);">
+            <span>➕ Вставка по периметру:</span> <span>${perimeterM.toFixed(2)} м × ${(insertCost/perimeterM).toFixed(0)} руб = ${insertCost.toFixed(0)} руб</span>
+        </div>
+        ` : ''}
+        <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #ddd; margin-top: 5px; padding-top: 5px;">
+            <span>ИТОГО:</span> <span>${total.toFixed(0)} руб</span>
+        </div>
+    `;
+}
+
+// Обновленная функция сохранения настроек
+function saveMaterialSettings() {
+    const room = rooms[activeRoom];
+    if (!room) return;
+    
+    // Сохраняем тип полотна
+    const canvasSelect = document.getElementById('canvasTypeSelect');
+    if (canvasSelect) {
+        room.materials = room.materials || {};
+        room.materials.canvasType = canvasSelect.value;
+    }
+    
+    // Сохраняем настройки профилей
+    const noProfileCheck = document.getElementById('noProfileCheck');
+    if (noProfileCheck) {
+        room.materials.noProfile = noProfileCheck.checked;
+    }
+    
+    const insertEnabledCheck = document.getElementById('insertEnabledCheck');
+    if (insertEnabledCheck) {
+        room.materials.insertEnabled = insertEnabledCheck.checked;
+    }
+    
+    const insertProfileSelect = document.getElementById('insertProfileSelect');
+    if (insertProfileSelect) {
+        room.materials.insertProfile = insertProfileSelect.value;
+    }
+    
+    // Сохраняем профили для стен
+    room.materials.wallProfiles = room.materials.wallProfiles || {};
+    const profileSelects = document.querySelectorAll('.wall-profile-select');
+    profileSelects.forEach(select => {
+        const wallIndex = select.dataset.wall;
+        room.materials.wallProfiles[wallIndex] = select.value;
+    });
+    
+    // Обновляем отображение и смету
+    draw();
+    updateStats();
+    
+    closeMaterialModal();
+    
+    console.log("✅ Материалы сохранены для комнаты", room.name, room.materials);
+    
+    // Показываем уведомление
+    if (typeof showNotification === 'function') {
+        showNotification('✅ Материалы сохранены');
+    }
+}
 
 // Экспорт
 window.CANVAS_TYPES = CANVAS_TYPES;
