@@ -193,51 +193,69 @@ class LightingAIAssistant {
         }
     }
     
-    generateGridPositions(requirements) {
-        const positions = [];
-        const count = requirements.requiredCount;
-        const fixtureSpec = requirements.fixtureSpec;
-        const minDistance = fixtureSpec.minDistance || 1000;
-        const wallOffset = fixtureSpec.wallOffset || 600;
-        
-        const polygon = this.room.points;
-        
-        // Определяем границы с отступом
-        const margin = wallOffset;
-        let startX = this.bounds.minX + margin;
-        let endX = this.bounds.maxX - margin;
-        let startY = this.bounds.minY + margin;
-        let endY = this.bounds.maxY - margin;
-        
-        // Корректировка для маленьких комнат
-        if (endX - startX < 500) {
-            startX = this.bounds.minX + 200;
-            endX = this.bounds.maxX - 200;
+    // УЛУЧШЕННАЯ генерация равномерной сетки
+generateGridPositions(requirements) {
+    const positions = [];
+    const count = requirements.requiredCount;
+    const fixtureSpec = requirements.fixtureSpec;
+    const wallOffset = fixtureSpec.wallOffset || 600;
+    
+    const polygon = this.room.points;
+    
+    // Получаем реальные границы комнаты
+    const minX = this.bounds.minX + wallOffset;
+    const maxX = this.bounds.maxX - wallOffset;
+    const minY = this.bounds.minY + wallOffset;
+    const maxY = this.bounds.maxY - wallOffset;
+    
+    // Вычисляем оптимальное количество рядов и колонок
+    const width = maxX - minX;
+    const height = maxY - minY;
+    
+    // Соотношение сторон комнаты
+    const aspectRatio = width / height;
+    
+    // Рассчитываем оптимальную сетку
+    let cols = Math.ceil(Math.sqrt(count * aspectRatio));
+    let rows = Math.ceil(count / cols);
+    
+    // Корректируем, чтобы получить ровно count или ближайшее меньшее
+    while (cols * rows > count * 1.2) {
+        if (cols > rows) {
+            cols--;
+        } else {
+            rows--;
         }
-        if (endY - startY < 500) {
-            startY = this.bounds.minY + 200;
-            endY = this.bounds.maxY - 200;
-        }
-        
-        // Вычисляем оптимальный шаг сетки
-        const area = (endX - startX) * (endY - startY);
-        const step = Math.sqrt(area / count) || 800;
-        
-        // Генерируем сетку
-        for (let x = startX; x <= endX; x += step) {
-            for (let y = startY; y <= endY; y += step) {
-                if (isPointInPolygon({ x, y }, polygon)) {
-                    positions.push({
-                        x, y,
-                        type: 'main',
-                        priority: 5
-                    });
-                }
+    }
+    
+    cols = Math.max(2, cols);
+    rows = Math.max(2, rows);
+    
+    console.log(`📐 Сетка: ${cols} x ${rows} = ${cols * rows} позиций`);
+    
+    // Шаг между светильниками
+    const stepX = width / (cols + 1);
+    const stepY = height / (rows + 1);
+    
+    // Генерируем позиции строго по сетке
+    for (let r = 1; r <= rows; r++) {
+        for (let c = 1; c <= cols; c++) {
+            const x = minX + c * stepX;
+            const y = minY + r * stepY;
+            
+            // Проверяем, что точка внутри комнаты
+            if (isPointInPolygon({ x, y }, polygon)) {
+                positions.push({
+                    x, y,
+                    type: 'main',
+                    priority: 10 // Высокий приоритет для равномерной сетки
+                });
             }
         }
-        
-        return positions;
     }
+    
+    return positions;
+}
     
     generateTrackPositions() {
         const positions = [];
