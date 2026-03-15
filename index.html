@@ -572,6 +572,72 @@
 </div>
     <!-- AI модуль оптимизации освещения -->
 <script src="js/ai-lighting.js"></script>
+    <!-- Регистрация Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('✅ ServiceWorker зарегистрирован:', registration.scope);
+                
+                // Слушаем обновления
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    console.log('🔄 Найдено обновление ServiceWorker');
+                    
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('📦 Новое обновление готово к установке');
+                            
+                            // Показываем уведомление о новом обновлении
+                            showUpdateNotification('sw');
+                        }
+                    });
+                });
+            })
+            .catch(error => {
+                console.error('❌ Ошибка регистрации ServiceWorker:', error);
+            });
+        
+        // Проверяем обновления при каждом заходе
+        navigator.serviceWorker.ready.then(registration => {
+            registration.update();
+        });
+    });
+}
+
+// Функция для показа уведомления от Service Worker
+function showUpdateNotification(from) {
+    const notification = document.createElement('div');
+    notification.id = 'swUpdateNotification';
+    notification.style.cssText = `
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        background: white; padding: 15px 25px; border-radius: 50px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2); z-index: 10000;
+        display: flex; align-items: center; gap: 15px;
+        border: 2px solid var(--primary);
+        animation: slideUp 0.3s;
+    `;
+    notification.innerHTML = `
+        <div style="font-size: 24px;">🔄</div>
+        <div>
+            <div style="font-weight: bold;">Доступна новая версия</div>
+            <div style="font-size: 12px; color: #666;">Обновите приложение для новых функций</div>
+        </div>
+        <button onclick="refreshApp()" style="background: var(--primary); color: white; border: none; padding: 8px 20px; border-radius: 30px; font-weight: bold; cursor: pointer;">
+            Обновить
+        </button>
+        <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (document.getElementById('swUpdateNotification')) {
+            document.getElementById('swUpdateNotification').remove();
+        }
+    }, 10000);
+}
+</script>
 </body>
 <script>
     // Функция для открытия/закрытия бокового меню на мобильных
